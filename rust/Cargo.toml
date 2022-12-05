@@ -1,0 +1,17 @@
+[workspace]
+
+[package]
+name = "automerge_jni"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+automerge = "0.4.0"
+jni = "0.20"
+thiserror = "1.0.37"
+automerge-jni-macros = { path = "./automerge-jni-macros" }
+
+[lib]
+crate_type = ["cdylib"]
