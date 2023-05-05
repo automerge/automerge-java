@@ -1,4 +1,4 @@
-# JNI Bindings for Automerge
+# Automerge for Java
 
 This is a java implmentation of automerge. It is implemented by wrapping the
 [Rust automerge implementation](https://github.com/automerge/automerge) but you
