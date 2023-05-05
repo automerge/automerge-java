@@ -35,8 +35,6 @@ dependencies {
 
 ## A quick example
 
-You can create a document
-
 ```java
 import org.automerge.ChangeHash;
 import org.automerge.Document;
