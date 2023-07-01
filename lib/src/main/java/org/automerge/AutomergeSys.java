@@ -314,4 +314,6 @@ class AutomergeSys {
 	public static native byte[] encodeSyncState(SyncStatePointer syncState);
 
 	public static native void freeSyncState(SyncStatePointer syncState);
+
+    public static native ChangeHash[] syncStateSharedHeads(SyncStatePointer syncState);
 }

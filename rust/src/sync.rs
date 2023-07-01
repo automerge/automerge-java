@@ -7,7 +7,7 @@ use automerge_jni_macros::jni_fn;
 use jni::{objects::JObject, sys::jobject};
 
 use crate::{
-    interop::AsPointerObj,
+    interop::{AsPointerObj, CHANGEHASH_CLASS, changehash_to_jobject},
     java_option::{make_empty_option, make_optional},
     patches::to_patch_arraylist,
     AUTOMERGE_EXCEPTION,
@@ -139,4 +139,24 @@ pub unsafe extern "C" fn freeSyncState(
     state_pointer: jobject,
 ) {
     let _state = SyncState::owned_from_pointer_obj(&env, state_pointer).unwrap();
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn syncStateSharedHeads(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass, 
+    state_pointer: jobject,
+) -> jobject {
+    let state = SyncState::from_pointer_obj(&env, state_pointer).unwrap();
+
+    let heads_arr = env
+        .new_object_array(state.shared_heads.len() as i32, CHANGEHASH_CLASS, JObject::null())
+        .unwrap();
+    for (i, head) in state.shared_heads.iter().enumerate() {
+        let hash = changehash_to_jobject(&env, head).unwrap();
+        env.set_object_array_element(heads_arr, i as i32, hash)
+            .unwrap();
+    }
+    heads_arr
 }

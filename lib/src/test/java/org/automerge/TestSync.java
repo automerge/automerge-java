@@ -86,6 +86,10 @@ class TestSync {
 	void sync(Document docA, Document docB) {
 		SyncState atob = new SyncState();
 		SyncState btoa = new SyncState();
+        sync(atob, btoa, docA, docB);
+    }
+
+	void sync(SyncState atob, SyncState btoa, Document docA, Document docB) {
 		int iterations = 0;
 		while (true) {
 			Optional<byte[]> message1 = docA.generateSyncMessage(atob);
@@ -153,4 +157,29 @@ class TestSync {
 		}
 		return patches;
 	}
+
+	@Test
+	public void testInSync() {
+		Document doc1 = new Document();
+		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+			tx.set(ObjectId.ROOT, "key", "value");
+			tx.commit();
+		}
+
+		Document doc2 = doc1.fork();
+		try (Transaction<ChangeHash> tx = doc2.startTransaction()) {
+			tx.set(ObjectId.ROOT, "key2", "value2");
+			tx.commit();
+		}
+
+        SyncState atob = new SyncState();
+        SyncState btoa = new SyncState();
+        Assertions.assertFalse(atob.isInSync(doc1));
+        Assertions.assertFalse(btoa.isInSync(doc2));
+        
+		sync(atob, btoa, doc1, doc2);
+        Assertions.assertTrue(atob.isInSync(doc1));
+        Assertions.assertTrue(btoa.isInSync(doc2));
+
+    }
 }
