@@ -15,7 +15,7 @@ Documentation is mostly just [the API docs](https://www.javadoc.io/doc/org.autom
 <dependency>
   <groupId>org.automerge</groupId>
   <artifactId>automerge</artifactId>
-  <version>0.0.2</version>
+  <version>0.0.3</version>
 </dependency>
 ```
 
@@ -23,14 +23,14 @@ Documentation is mostly just [the API docs](https://www.javadoc.io/doc/org.autom
 
 ```kotlin
 dependencies {
-    implementation group: 'org.automerge', name: 'automerge', version: "0.0.2"
+    implementation group: 'org.automerge', name: 'automerge', version: "0.0.3"
 }
 ```
 
 ### Leiningen
 
 ```
-  :dependencies [[org.automerge/automerge "0.0.2"]]
+  :dependencies [[org.automerge/automerge "0.0.3"]]
 ```
 
 ## A quick example
