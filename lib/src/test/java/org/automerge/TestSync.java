@@ -86,8 +86,8 @@ class TestSync {
 	void sync(Document docA, Document docB) {
 		SyncState atob = new SyncState();
 		SyncState btoa = new SyncState();
-        sync(atob, btoa, docA, docB);
-    }
+		sync(atob, btoa, docA, docB);
+	}
 
 	void sync(SyncState atob, SyncState btoa, Document docA, Document docB) {
 		int iterations = 0;
@@ -172,14 +172,14 @@ class TestSync {
 			tx.commit();
 		}
 
-        SyncState atob = new SyncState();
-        SyncState btoa = new SyncState();
-        Assertions.assertFalse(atob.isInSync(doc1));
-        Assertions.assertFalse(btoa.isInSync(doc2));
-        
-		sync(atob, btoa, doc1, doc2);
-        Assertions.assertTrue(atob.isInSync(doc1));
-        Assertions.assertTrue(btoa.isInSync(doc2));
+		SyncState atob = new SyncState();
+		SyncState btoa = new SyncState();
+		Assertions.assertFalse(atob.isInSync(doc1));
+		Assertions.assertFalse(btoa.isInSync(doc2));
 
-    }
+		sync(atob, btoa, doc1, doc2);
+		Assertions.assertTrue(atob.isInSync(doc1));
+		Assertions.assertTrue(btoa.isInSync(doc2));
+
+	}
 }

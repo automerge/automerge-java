@@ -1,8 +1,6 @@
 package org.automerge;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -30,66 +28,70 @@ import java.util.Set;
  * will mean re-syncing later may require less round trips.
  */
 public class SyncState {
-    private Optional<AutomergeSys.SyncStatePointer> pointer;
+	private Optional<AutomergeSys.SyncStatePointer> pointer;
 
-    private SyncState(AutomergeSys.SyncStatePointer pointer) {
-        this.pointer = Optional.of(pointer);
-    }
+	private SyncState(AutomergeSys.SyncStatePointer pointer) {
+		this.pointer = Optional.of(pointer);
+	}
 
-    /** Create a new sync state for a new connection */
-    public SyncState() {
-        this(AutomergeSys.createSyncState());
-    }
+	/** Create a new sync state for a new connection */
+	public SyncState() {
+		this(AutomergeSys.createSyncState());
+	}
 
-    /**
-     * Decode a previously encoded sync state
-     *
-     * @param encoded
-     *                The encoded sync state
-     * @return The decoded sync state
-     * @throws AutomergeException
-     *                            if the encoded sync state is not valid
-     */
-    public static SyncState decode(byte[] encoded) {
-        return new SyncState(AutomergeSys.decodeSyncState(encoded));
-    }
+	/**
+	 * Decode a previously encoded sync state
+	 *
+	 * @param encoded
+	 *            The encoded sync state
+	 * @return The decoded sync state
+	 * @throws AutomergeException
+	 *             if the encoded sync state is not valid
+	 */
+	public static SyncState decode(byte[] encoded) {
+		return new SyncState(AutomergeSys.decodeSyncState(encoded));
+	}
 
-    protected synchronized Optional<byte[]> generateSyncMessage(Document doc) {
-        return doc.generateSyncMessage(this.pointer.get());
-    }
+	protected synchronized Optional<byte[]> generateSyncMessage(Document doc) {
+		return doc.generateSyncMessage(this.pointer.get());
+	}
 
-    protected synchronized void receiveSyncMessage(Document doc, byte[] message) {
-        doc.receiveSyncMessage(this.pointer.get(), message);
-    }
+	protected synchronized void receiveSyncMessage(Document doc, byte[] message) {
+		doc.receiveSyncMessage(this.pointer.get(), message);
+	}
 
-    protected synchronized List<Patch> receiveSyncMessageForPatches(Document doc, byte[] message) {
-        return doc.receiveSyncMessageForPatches(this.pointer.get(), message);
-    }
+	protected synchronized List<Patch> receiveSyncMessageForPatches(Document doc, byte[] message) {
+		return doc.receiveSyncMessageForPatches(this.pointer.get(), message);
+	}
 
-    /**
-     * Encode the sync state for storage
-     *
-     * @return The encoded sync state
-     */
-    public synchronized byte[] encode() {
-        return AutomergeSys.encodeSyncState(this.pointer.get());
-    }
+	/**
+	 * Encode the sync state for storage
+	 *
+	 * @return The encoded sync state
+	 */
+	public synchronized byte[] encode() {
+		return AutomergeSys.encodeSyncState(this.pointer.get());
+	}
 
-    /** Free the memory associated with this sync state */
-    public synchronized void free() {
-        if (this.pointer.isPresent()) {
-            AutomergeSys.freeSyncState(this.pointer.get());
-            this.pointer = Optional.empty();
-        }
-    }
+	/** Free the memory associated with this sync state */
+	public synchronized void free() {
+		if (this.pointer.isPresent()) {
+			AutomergeSys.freeSyncState(this.pointer.get());
+			this.pointer = Optional.empty();
+		}
+	}
 
-    /**
-     * Whether the other end of this sync connection is in sync with `doc`
-     */
-    public synchronized boolean isInSync(Document doc) {
-        Set<ChangeHash> shared = new HashSet<ChangeHash>(
-                Arrays.asList(AutomergeSys.syncStateSharedHeads(this.pointer.get())));
-        Set<ChangeHash> ours = new HashSet<ChangeHash>(Arrays.asList(doc.getHeads()));
-        return shared.equals(ours);
-    }
+	/**
+	 * Whether the other end of this sync connection is in sync with `doc`
+	 *
+	 * @param doc
+	 *            The document to check we are in sync with
+	 * @return Whether we are in sync
+	 */
+	public synchronized boolean isInSync(Document doc) {
+		Set<ChangeHash> shared = new HashSet<ChangeHash>(
+				Arrays.asList(AutomergeSys.syncStateSharedHeads(this.pointer.get())));
+		Set<ChangeHash> ours = new HashSet<ChangeHash>(Arrays.asList(doc.getHeads()));
+		return shared.equals(ours);
+	}
 }
