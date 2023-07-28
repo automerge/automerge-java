@@ -10,17 +10,17 @@ class TestSync {
 	@Test
 	public void testSync() {
 		Document doc1 = new Document();
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
 
 		Document doc2 = doc1.fork();
-		try (Transaction<ChangeHash> tx = doc2.startTransaction()) {
+		try (Transaction tx = doc2.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key2", "value2");
 			tx.commit();
 		}
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key3", "value3");
 			tx.commit();
 		}
@@ -38,7 +38,7 @@ class TestSync {
 	@Test
 	public void testGenerateSyncMessageThrowsInTransaction() {
 		Document doc1 = new Document();
-		Transaction<ChangeHash> tx = doc1.startTransaction();
+		Transaction tx = doc1.startTransaction();
 		SyncState syncState = new SyncState();
 		Assertions.assertThrows(TransactionInProgress.class, () -> {
 			doc1.generateSyncMessage(syncState);
@@ -48,14 +48,14 @@ class TestSync {
 	@Test
 	public void testRecieveSyncMessageThrowsInTransaction() {
 		Document doc1 = new Document();
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
 		SyncState syncState = new SyncState();
 		byte[] message = syncState.generateSyncMessage(doc1).get();
 		Document doc2 = new Document();
-		Transaction<ChangeHash> tx = doc2.startTransaction();
+		Transaction tx = doc2.startTransaction();
 		SyncState syncState2 = new SyncState();
 		Assertions.assertThrows(TransactionInProgress.class, () -> {
 			doc2.receiveSyncMessage(syncState2, message);
@@ -66,7 +66,7 @@ class TestSync {
 	public void testEncodeDecodeSyncState() {
 		SyncState state = new SyncState();
 		Document doc = new Document();
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
@@ -113,7 +113,7 @@ class TestSync {
 	@Test
 	public void testSyncForPatches() {
 		Document doc1 = new Document();
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
@@ -136,12 +136,12 @@ class TestSync {
 	List<Patch> syncForPatches(Document docA, Document docB) {
 		SyncState atob = new SyncState();
 		SyncState btoa = new SyncState();
-		ArrayList<Patch> patches = new ArrayList<>();
+		PatchLog patchLog = new PatchLog();
 		int iterations = 0;
 		while (true) {
 			Optional<byte[]> message1 = docA.generateSyncMessage(atob);
 			if (message1.isPresent()) {
-				patches.addAll(docB.receiveSyncMessageForPatches(btoa, message1.get()));
+				docB.receiveSyncMessage(btoa, patchLog, message1.get());
 			}
 			Optional<byte[]> message2 = docB.generateSyncMessage(btoa);
 			if (message2.isPresent()) {
@@ -155,19 +155,19 @@ class TestSync {
 				throw new RuntimeException("Sync failed to converge");
 			}
 		}
-		return patches;
+		return docB.makePatches(patchLog);
 	}
 
 	@Test
 	public void testInSync() {
 		Document doc1 = new Document();
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
 
 		Document doc2 = doc1.fork();
-		try (Transaction<ChangeHash> tx = doc2.startTransaction()) {
+		try (Transaction tx = doc2.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key2", "value2");
 			tx.commit();
 		}

@@ -1,4 +1,4 @@
-use automerge::{op_observer::HasPatches, ActorId, Automerge, VecOpObserver};
+use automerge::{patches::TextRepresentation, ActorId, Automerge, PatchLog};
 use automerge_jni_macros::jni_fn;
 use jni::{objects::JObject, sys::jobject};
 
@@ -53,15 +53,31 @@ pub unsafe extern "C" fn startTransaction(
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn startObservedTransaction(
+pub unsafe extern "C" fn startTransactionLogPatches(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
     doc_pointer: jni::sys::jobject,
+    patch_log_pointer: jni::sys::jobject,
 ) -> jobject {
     let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
-    let observer = automerge::VecOpObserver::default()
-        .with_text_rep(automerge::op_observer::TextRepresentation::String);
-    let tx = doc.transaction_with_observer(observer);
+    let patch_log = PatchLog::owned_from_pointer_obj(&env, patch_log_pointer).unwrap();
+    let tx = doc.transaction_log_patches(*patch_log);
+    tx.to_pointer_obj(&env).unwrap()
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn startTransactionAt(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    doc_pointer: jni::sys::jobject,
+    patchlog_pointer: jni::sys::jobject,
+    heads: jni::sys::jobject,
+) -> jobject {
+    let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
+    let patch_log = PatchLog::owned_from_pointer_obj(&env, patchlog_pointer).unwrap();
+    let heads = heads_from_jobject(&env, heads).unwrap();
+    let tx = doc.transaction_at(*patch_log, &heads);
     tx.to_pointer_obj(&env).unwrap()
 }
 
@@ -196,24 +212,22 @@ pub unsafe extern "C" fn mergeDoc(
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn mergeDocObserved(
+pub unsafe extern "C" fn mergeDocLogPatches(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
     doc_pointer: jobject,
     other_doc_pointer: jobject,
-) -> jobject {
+    patch_log_pointer: jobject,
+) {
     let doc1 = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
     let other_doc = automerge::Automerge::from_pointer_obj(&env, other_doc_pointer).unwrap();
-    let mut obs =
-        VecOpObserver::default().with_text_rep(automerge::op_observer::TextRepresentation::String);
-    match doc1.merge_with(other_doc, Some(&mut obs)) {
+    let patch_log = automerge::PatchLog::from_pointer_obj(&env, patch_log_pointer).unwrap();
+    match doc1.merge_and_log_patches(other_doc, patch_log) {
         Ok(_) => {}
         Err(e) => {
             env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
         }
     }
-    let patches = obs.take_patches();
-    to_patch_arraylist(&env, patches).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -226,15 +240,8 @@ pub unsafe extern "C" fn encodeChangesSince(
 ) -> jobject {
     let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
     let heads = heads_from_jobject(&env, heads_pointer).unwrap();
-    let changes = match doc.get_changes(&heads) {
-        Ok(c) => c,
-        Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
-            return JObject::null().into_raw();
-        }
-    };
     let mut bytes = Vec::new();
-    for change in changes {
+    for change in doc.get_changes(&heads) {
         bytes.extend(change.raw_bytes().as_ref());
     }
     env.byte_array_from_slice(&bytes).unwrap()
@@ -260,23 +267,50 @@ pub unsafe extern "C" fn applyEncodedChanges(
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn applyEncodedChangesObserved(
+pub unsafe extern "C" fn applyEncodedChangesLogPatches(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
     doc_pointer: jobject,
+    patchlog_pointer: jobject,
     changes_pointer: jobject,
-) -> jobject {
+) {
     let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
     let changes_bytes = env.convert_byte_array(changes_pointer).unwrap();
-    let mut observer =
-        VecOpObserver::default().with_text_rep(automerge::op_observer::TextRepresentation::String);
-    match doc.load_incremental_with(&changes_bytes, Some(&mut observer)) {
+    let patchlog = PatchLog::from_pointer_obj(&env, patchlog_pointer).unwrap();
+    match doc.load_incremental_log_patches(&changes_bytes, patchlog) {
         Ok(_) => {}
         Err(e) => {
             env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
-            return JObject::null().into_raw();
         }
     };
-    let patches = observer.take_patches();
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn makePatches(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    doc_pointer: jobject,
+    patchlog_pointer: jobject,
+) -> jobject {
+    let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
+    let patchlog = PatchLog::from_pointer_obj(&env, patchlog_pointer).unwrap();
+    let patches = doc.make_patches(patchlog);
+    to_patch_arraylist(&env, patches).unwrap().into_raw()
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn diff(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    doc_pointer: jobject,
+    before_heads_pointer: jobject,
+    after_heads_pointer: jobject,
+) -> jobject {
+    let doc = automerge::Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
+    let before = heads_from_jobject(&env, before_heads_pointer).unwrap();
+    let after = heads_from_jobject(&env, after_heads_pointer).unwrap();
+    let patches = doc.diff(&before, &after, TextRepresentation::String);
     to_patch_arraylist(&env, patches).unwrap().into_raw()
 }

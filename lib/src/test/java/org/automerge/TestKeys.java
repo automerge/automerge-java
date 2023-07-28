@@ -1,14 +1,14 @@
 package org.automerge;
 
 import java.util.Optional;
-import java.util.function.Function;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class TestKeys {
-	<T> void run(Function<Document, Transaction<T>> createTx) {
+	@Test
+	public void testKeys() {
 		Document doc = new Document();
-		Transaction<T> tx = createTx.apply(doc);
+		Transaction tx = doc.startTransaction();
 		tx.set(ObjectId.ROOT, "key1", ObjectType.MAP);
 		tx.set(ObjectId.ROOT, "key2", ObjectType.LIST);
 		ObjectId list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
@@ -20,7 +20,7 @@ class TestKeys {
 		tx.commit();
 
 		ChangeHash[] heads = doc.getHeads();
-		tx = createTx.apply(doc);
+		tx = doc.startTransaction();
 		String[] expectedBefore = {"key1", "key2", "list",};
 		tx.delete(ObjectId.ROOT, "key1");
 		String[] expectedAfter = {"key2", "list",};
@@ -31,15 +31,5 @@ class TestKeys {
 		tx.commit();
 		Assertions.assertArrayEquals(expectedBefore, doc.keys(ObjectId.ROOT, heads).get());
 		Assertions.assertEquals(Optional.empty(), doc.keys(list));
-	}
-
-	@Test
-	public void testKeys() {
-		run(doc -> doc.startTransaction());
-	}
-
-	@Test
-	public void testKeysObserved() {
-		run(doc -> doc.startTransactionForPatches());
 	}
 }

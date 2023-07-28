@@ -3,7 +3,6 @@ use jni::objects::JObject;
 
 use crate::{
     am_value::to_amvalue,
-    interop::changehash_to_jobject,
     mark::mark_to_java,
     obj_id::JavaObjId,
     path_element::{path_to_java, prop_to_java, PATH_ELEM_CLASS, PROP_CLASS},
@@ -19,18 +18,16 @@ const INCREMENT_CLASS: &str = am_classname!("PatchAction$Increment");
 const DELETEMAP_CLASS: &str = am_classname!("PatchAction$DeleteMap");
 const DELETELIST_CLASS: &str = am_classname!("PatchAction$DeleteList");
 const MARK_CLASS: &str = am_classname!("PatchAction$Mark");
-
-const HASH_AND_PATCH_CLASS: &str = am_classname!("HashAndPatches");
+const FLAG_CONFLICT_CLASS: &str = am_classname!("PatchAction$FlagConflict");
 
 fn to_jni_patch<'a>(
     env: &jni::JNIEnv<'a>,
-    patch: am::Patch<char>,
+    patch: am::Patch,
 ) -> jni::errors::Result<Option<JObject<'a>>> {
     let jaction = match patch.action {
         am::PatchAction::PutMap {
             key,
             value,
-            expose: _,
             conflict,
         } => {
             let jkey = env.new_string(key).unwrap().into();
@@ -45,7 +42,6 @@ fn to_jni_patch<'a>(
         am::PatchAction::PutSeq {
             index,
             value,
-            expose: _,
             conflict,
         } => {
             let jvalue = unsafe { to_amvalue(env, value)? };
@@ -59,27 +55,31 @@ fn to_jni_patch<'a>(
         am::PatchAction::Insert {
             index,
             values,
-            conflict,
+            marks: _,
         } => {
             let arr = env.new_object_array(
                 values.len() as i32,
                 am_classname!("AmValue"),
                 JObject::null(),
             )?;
-            for (i, val) in values.into_iter().enumerate() {
-                let jval = unsafe { to_amvalue(env, val.clone())? };
+            for (i, (value, id, _conflict)) in values.into_iter().enumerate() {
+                let jval = unsafe { to_amvalue(env, (value.clone(), id.clone()))? };
                 env.set_object_array_element(arr, i as i32, jval)?;
             }
             let jarr = unsafe { JObject::from_raw(arr) };
             let jindex = index as i64;
             env.new_object(
                 INSERT_CLASS,
-                format!("(J[L{};Z)V", am_classname!("AmValue")),
-                &[jindex.into(), jarr.into(), conflict.into()],
+                format!("(J[L{};)V", am_classname!("AmValue")),
+                &[jindex.into(), jarr.into()],
             )?
         }
-        am::PatchAction::SpliceText { index, value } => {
-            let as_str = value.into_iter().collect::<String>();
+        am::PatchAction::SpliceText {
+            index,
+            value,
+            marks: _,
+        } => {
+            let as_str = value.make_string();
             let jvalue = env.new_string(as_str).unwrap();
             let jindex = index as i64;
             env.new_object(
@@ -119,9 +119,13 @@ fn to_jni_patch<'a>(
                 &[marks_arr.into()],
             )?
         }
-        // This is only here until we update automerge to remove this patch type
-        am::PatchAction::Unmark { .. } => {
-            return Ok(None);
+        am::PatchAction::Conflict { prop } => {
+            let jprop = prop_to_java(env, &prop)?;
+            env.new_object(
+                FLAG_CONFLICT_CLASS,
+                format!("(L{};J)V", PROP_CLASS),
+                &[jprop.into(), 0.into()],
+            )?
         }
     };
     let jpath = path_to_java(env, patch.path.iter())?;
@@ -141,7 +145,7 @@ fn to_jni_patch<'a>(
 
 pub(crate) fn to_patch_arraylist<'a>(
     env: &jni::JNIEnv<'a>,
-    patches: Vec<am::Patch<char>>,
+    patches: Vec<am::Patch>,
 ) -> jni::errors::Result<JObject<'a>> {
     let patches_arraylist = env.new_object("java/util/ArrayList", "()V", &[])?;
     for patch in patches.into_iter() {
@@ -155,26 +159,4 @@ pub(crate) fn to_patch_arraylist<'a>(
         }
     }
     Ok(patches_arraylist)
-}
-
-pub(crate) fn hash_and_patches<'a>(
-    env: &jni::JNIEnv<'a>,
-    hash: &am::ChangeHash,
-    patches: Vec<am::Patch<char>>,
-) -> jni::errors::Result<JObject<'a>> {
-    let jpatches = patches
-        .into_iter()
-        .filter_map(|patch| to_jni_patch(env, patch).transpose())
-        .collect::<jni::errors::Result<Vec<_>>>()?;
-    let patches_arr = env.new_object_array(jpatches.len() as i32, PATCH_CLASS, JObject::null())?;
-    for (i, jpatch) in jpatches.into_iter().enumerate() {
-        env.set_object_array_element(patches_arr, i as i32, jpatch)?;
-    }
-    let hash = unsafe { changehash_to_jobject(env, hash)? };
-    let patches_arr = unsafe { JObject::from_raw(patches_arr) };
-    env.new_object(
-        HASH_AND_PATCH_CLASS,
-        format!("([L{};L{};)V", PATCH_CLASS, am_classname!("ChangeHash")),
-        &[patches_arr.into(), hash.into()],
-    )
 }

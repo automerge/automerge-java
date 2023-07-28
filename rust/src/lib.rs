@@ -13,6 +13,7 @@ mod expand_mark;
 mod interop;
 mod mark;
 mod obj_type;
+mod patch_log;
 mod patches;
 mod path_element;
 mod transaction;
@@ -29,7 +30,6 @@ mod read_ops;
 
 mod am_value;
 mod java_option;
-use java_option::make_empty_option;
 
 const AUTOMERGE_EXCEPTION: &str = am_classname!("AutomergeException");
 

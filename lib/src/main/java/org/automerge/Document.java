@@ -1,10 +1,8 @@
 package org.automerge;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.automerge.AutomergeSys.DocPointer;
-import org.automerge.AutomergeSys.UnobservedTransactionPointer;
 
 /**
  * The entry point to the automerge data model
@@ -24,11 +22,10 @@ import org.automerge.AutomergeSys.UnobservedTransactionPointer;
  * <h2>Transactions</h2>
  *
  * Changes to the document are made in a {@link Transaction}. To obtain a
- * transaction call {@link startTransaction} or
- * {@link startTransactionForPatches}. Attempting to modify the document whilst
- * a transaction is in progress will throw a {@link TransactionInProgress}
- * exception. For this reason transactions should probably be short lived and
- * locally scoped.
+ * transaction call {@link startTransaction}.Attempting to modify the document
+ * whilst a transaction is in progress will throw a
+ * {@link TransactionInProgress} exception. For this reason transactions should
+ * probably be short lived and locally scoped.
  *
  * <h2>Heads</h2>
  *
@@ -240,21 +237,24 @@ public class Document implements Read {
 	}
 
 	/**
-	 * Merge another document into this one returning patches
+	 * Merge another document into this one logging patches
 	 *
 	 * @param other
 	 *            The document to merge into this one
-	 * @return The patches representing how this document changed as a result of the
-	 *         merge
+	 * @param patchLog
+	 *            The patch log in which to record any changes to the current state
+	 *            which occur as a result of the merge
 	 * @throws TransactionInProgress
 	 *             if there is a transaction in progress on this document or on the
 	 *             other document
 	 */
-	public synchronized ArrayList<Patch> mergeForPatches(Document other) {
+	public synchronized void merge(Document other, PatchLog patchLog) {
 		if (this.transactionPtr.isPresent() || other.transactionPtr.isPresent()) {
 			throw new TransactionInProgress();
 		}
-		return AutomergeSys.mergeDocObserved(this.pointer.get(), other.pointer.get());
+		patchLog.with((pointer) -> {
+			AutomergeSys.mergeDocLogPatches(this.pointer.get(), other.pointer.get(), pointer);
+		});
 	}
 
 	/**
@@ -294,8 +294,8 @@ public class Document implements Read {
 	}
 
 	/**
-	 * The same as {@link applyEncodedChanges} but returns some patches that
-	 * describe any change that occurred
+	 * The same as {@link applyEncodedChanges} but logs any changes to the current
+	 * state that result from applying the change in the given patch log
 	 *
 	 * <p>
 	 * Creating patches does imply a performance penalty, so if you don't need them
@@ -304,18 +304,19 @@ public class Document implements Read {
 	 * @param changes
 	 *            The changes to incorporate. Produced by {@link encodeChangesSince}
 	 *            or {@link save}
-	 * @return The patches that describe the changes that occurred when merging the
-	 *         changes
+	 * @param patchLog
+	 *            The patch log in which to record any changes to the current state
 	 * @throws TransactionInProgress
 	 *             if a transaction is in progress
 	 * @throws AutomergeException
 	 *             if the changes are not valid
 	 */
-	public synchronized ArrayList<Patch> applyEncodedChangesForPatches(byte[] changes) {
+	public synchronized void applyEncodedChanges(byte[] changes, PatchLog patchLog) {
 		if (this.transactionPtr.isPresent()) {
 			throw new TransactionInProgress();
 		}
-		return AutomergeSys.applyEncodedChangesObserved(this.pointer.get(), changes);
+		patchLog.with((AutomergeSys.PatchLogPointer patchLogPointer) -> AutomergeSys
+				.applyEncodedChangesLogPatches(this.pointer.get(), patchLogPointer, changes));
 	}
 
 	public synchronized Optional<AmValue> get(ObjectId obj, String key) {
@@ -459,22 +460,17 @@ public class Document implements Read {
 	 * @throws TransactionInProgress
 	 *             if a transaction is already in progress
 	 */
-	public synchronized Transaction<ChangeHash> startTransaction() {
+	public synchronized Transaction startTransaction() {
 		if (this.transactionPtr.isPresent()) {
 			throw new TransactionInProgress();
 		}
-		UnobservedTransactionPointer ptr = AutomergeSys.startTransaction(this.pointer.get());
+		AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransaction(this.pointer.get());
 		this.transactionPtr = Optional.of(ptr);
-		return new TransactionWithoutPatches(this, ptr);
+		return new TransactionImpl(this, ptr);
 	}
 
 	/**
-	 * Start a transaction to change this document which returns patches
-	 *
-	 * <p>
-	 * This returns a transaction which will return a {@link HashAndPatches} from
-	 * it's {@link Transaction#commit} method. The returned patches represent the
-	 * changes made during the transaction.
+	 * Start a transaction to change this document which logs changes in a patch log
 	 *
 	 * <p>
 	 * There can only be one active transaction per document. Any method which
@@ -482,17 +478,55 @@ public class Document implements Read {
 	 * throw an exception if a transaction is in progress. Therefore keep
 	 * transactions short lived.
 	 *
+	 * @param patchLog
+	 *            the {@link PatchLog} to log changes to
 	 * @return a new transaction
 	 * @throws TransactionInProgress
 	 *             if a transaction is already in progress
 	 */
-	public synchronized Transaction<HashAndPatches> startTransactionForPatches() {
+	public synchronized Transaction startTransaction(PatchLog patchLog) {
 		if (this.transactionPtr.isPresent()) {
 			throw new TransactionInProgress();
 		}
-		AutomergeSys.ObservedTransactionPointer ptr = AutomergeSys.startObservedTransaction(this.pointer.get());
+		AutomergeSys.PatchLogPointer patchLogPointer = patchLog.take();
+		AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransactionLogPatches(this.pointer.get(),
+				patchLogPointer);
 		this.transactionPtr = Optional.of(ptr);
-		return new TransactionWithPatches(this, ptr);
+		return new TransactionImpl(this, ptr, (AutomergeSys.PatchLogPointer returnedPointer) -> {
+			patchLog.put(returnedPointer);
+		});
+	}
+
+	/**
+	 * Start a transaction to change this document based on the document at a given
+	 * heads
+	 *
+	 * <p>
+	 * There can only be one active transaction per document. Any method which
+	 * mutates the document (e.g. {@link merge} or {@link receiveSyncMessage} will
+	 * throw an exception if a transaction is in progress. Therefore keep
+	 * transactions short lived.
+	 *
+	 * @param patchLog
+	 *            the {@link PatchLog} to log changes to. Note that the the changes
+	 *            logged here will represent changes from the state as at the given
+	 *            heads, not the state of the document when calling this method.
+	 * @param heads
+	 *            the heads to begin the transaction at
+	 *
+	 * @return a new transaction
+	 * @throws TransactionInProgress
+	 *             if a transaction is already in progress
+	 */
+	public synchronized Transaction startTransactionAt(PatchLog patchLog, ChangeHash[] heads) {
+		if (this.transactionPtr.isPresent()) {
+			throw new TransactionInProgress();
+		}
+		AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransactionAt(this.pointer.get(), patchLog.take(),
+				heads);
+		return new TransactionImpl(this, ptr, (AutomergeSys.PatchLogPointer returnedPointer) -> {
+			patchLog.put(returnedPointer);
+		});
 	}
 
 	public synchronized Optional<AmValue[]> listItems(ObjectId obj) {
@@ -570,7 +604,7 @@ public class Document implements Read {
 	 *
 	 * <p>
 	 * If you need to know what changes happened as a result of the message use
-	 * {@link receiveSyncMessageForPatches} instead.
+	 * {@link receiveSyncMessage(SyncState,PatchLog,byte[])} instead.
 	 *
 	 * @param syncState
 	 *            the {@link SyncState} for the connection you are syncing with
@@ -584,23 +618,45 @@ public class Document implements Read {
 	}
 
 	/**
-	 * Applies a sync message to the document.
+	 * Applies a sync message to the document logging any changes in a PatchLog.
 	 *
 	 * @param syncState
 	 *            the {@link SyncState} for the connection you are syncing with
+	 * @param patchLog
+	 *            the {@link PatchLog} to log changes to
 	 * @param message
 	 *            The sync message to apply.
-	 * @return A list of {@link Patch}es representing the changes that occurred as a
-	 *         result of the message
 	 * @throws TransactionInProgress
 	 *             if a transaction is already in progress
 	 */
-	public synchronized List<Patch> receiveSyncMessageForPatches(SyncState syncState, byte[] message) {
-		return syncState.receiveSyncMessageForPatches(this, message);
+	public synchronized void receiveSyncMessage(SyncState syncState, PatchLog patchLog, byte[] message) {
+		syncState.receiveSyncMessageLogPatches(this, patchLog, message);
 	}
 
-	protected synchronized List<Patch> receiveSyncMessageForPatches(AutomergeSys.SyncStatePointer syncState,
-			byte[] message) {
-		return AutomergeSys.receiveSyncMessageForPatches(syncState, this.pointer.get(), message);
+	public synchronized List<Patch> makePatches(PatchLog patchLog) {
+		if (this.transactionPtr.isPresent()) {
+			throw new TransactionInProgress();
+		}
+		return patchLog.with((AutomergeSys.PatchLogPointer p) -> AutomergeSys.makePatches(this.pointer.get(), p));
+	}
+
+	protected synchronized void receiveSyncMessageLogPatches(AutomergeSys.SyncStatePointer syncState,
+			AutomergeSys.PatchLogPointer patchLog, byte[] message) {
+		AutomergeSys.receiveSyncMessageLogPatches(syncState, this.pointer.get(), patchLog, message);
+	}
+
+	/**
+	 * Return the patches that would be required to modify the state at `before` to
+	 * become the state at `after`
+	 *
+	 * @param before
+	 *            The heads of the statre to start from
+	 * @param after
+	 *            The heads of the state to end at
+	 * @return The patches required to transform the state at `before` to the state
+	 *         at `after`
+	 */
+	public List<Patch> diff(ChangeHash[] before, ChangeHash[] after) {
+		return AutomergeSys.diff(this.pointer.get(), before, after);
 	}
 }

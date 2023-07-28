@@ -1,4 +1,4 @@
-use automerge::ScalarValue;
+use automerge::{transaction::Transactable, ScalarValue};
 use automerge_jni_macros::jni_fn;
 use jni::{
     objects::JObject,
@@ -22,14 +22,14 @@ const COUNTER_CLASS: &str = am_classname!("NewValue$Counter");
 struct SpliceOp {
     obj: jobject,
     index: usize,
-    delete: usize,
+    delete: isize,
     values: jobject,
 }
 
 impl TransactionOp for SpliceOp {
     type Output = ();
 
-    unsafe fn execute<T: super::Transaction>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
         let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
         let iter = JObjToValIter {
             jiter: JObject::from_raw(self.values),
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn splice(
         SpliceOp {
             obj: obj_pointer,
             index: idx as usize,
-            delete: delete as usize,
+            delete: delete as isize,
             values,
         },
     )

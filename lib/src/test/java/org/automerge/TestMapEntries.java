@@ -17,16 +17,9 @@ class TestMapEntries {
 		run(doc -> doc.startTransaction());
 	}
 
-	@Test
-	public void testMapEntriesObserved() {
-		run(doc -> {
-			return doc.startTransactionForPatches();
-		});
-	}
-
-	<T> void run(Function<Document, Transaction<T>> createTx) {
+	void run(Function<Document, Transaction> createTx) {
 		Document doc = new Document();
-		Transaction<T> tx = createTx.apply(doc);
+		Transaction tx = createTx.apply(doc);
 		insertMapEntries(tx);
 		assertMapEntries(tx);
 		assertMapEntries(doc);
@@ -55,7 +48,7 @@ class TestMapEntries {
 		assertMapEntries(docAtPostCommit);
 	}
 
-	<T> void insertMapEntries(Transaction<T> tx) {
+	void insertMapEntries(Transaction tx) {
 		map = tx.set(ObjectId.ROOT, "map", ObjectType.MAP);
 		list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 		text = tx.set(ObjectId.ROOT, "text", ObjectType.TEXT);

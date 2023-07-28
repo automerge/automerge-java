@@ -4,24 +4,34 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
-public abstract class AbstractTransaction<T> implements Transaction<T> {
+public class TransactionImpl implements Transaction {
 	private Optional<AutomergeSys.TransactionPointer> pointer;
 	private Document doc;
+	private Optional<Consumer<AutomergeSys.PatchLogPointer>> finish;
 
-	protected AbstractTransaction(Document doc, AutomergeSys.TransactionPointer pointer) {
+	protected TransactionImpl(Document doc, AutomergeSys.TransactionPointer pointer) {
 		this.pointer = Optional.of(pointer);
 		this.doc = doc;
+		this.finish = Optional.empty();
 	}
 
-	protected abstract Optional<T> doCommit(AutomergeSys.TransactionPointer tx);
+	protected TransactionImpl(Document doc, AutomergeSys.TransactionPointer pointer,
+			Consumer<AutomergeSys.PatchLogPointer> finish) {
+		this.pointer = Optional.of(pointer);
+		this.doc = doc;
+		this.finish = Optional.of(finish);
+	}
 
-	@Override
-	public synchronized Optional<T> commit() {
-		Optional<T> result = this.doCommit(this.pointer.get());
+	public synchronized Optional<ChangeHash> commit() {
+		CommitResult result = AutomergeSys.commitTransaction(pointer.get());
 		this.pointer = Optional.empty();
 		this.doc.clearTransaction();
-		return result;
+		if (finish.isPresent()) {
+			finish.get().accept(result.getPatchLog());
+		}
+		return result.getHash();
 	}
 
 	public synchronized void rollback() {

@@ -1,14 +1,9 @@
-use automerge::{
-    self as am,
-    transaction::{Observed, Transaction, UnObserved},
-    ChangeHash, VecOpObserver,
-};
+use am::PatchLog;
+use automerge::{self as am, transaction::Transaction, ChangeHash};
 use jni::{
     objects::{JObject, JValue},
     sys::jobject,
 };
-
-use crate::patches::hash_and_patches;
 
 pub(crate) const CHANGEHASH_CLASS: &str = am_classname!("ChangeHash");
 
@@ -72,17 +67,10 @@ impl AsPointerObj for automerge::Automerge {
     }
 }
 
-impl<'a> AsPointerObj for automerge::transaction::Transaction<'a, UnObserved> {
-    type EnvRef<'b> = Transaction<'a, UnObserved>;
+impl<'a> AsPointerObj for automerge::transaction::Transaction<'a> {
+    type EnvRef<'b> = Transaction<'a>;
     fn classname() -> &'static str {
-        am_classname!("AutomergeSys$UnobservedTransactionPointer")
-    }
-}
-
-impl<'a> AsPointerObj for automerge::transaction::Transaction<'a, Observed<VecOpObserver>> {
-    type EnvRef<'c> = Transaction<'a, Observed<VecOpObserver>>;
-    fn classname() -> &'static str {
-        am_classname!("AutomergeSys$ObservedTransactionPointer")
+        am_classname!("AutomergeSys$TransactionPointer")
     }
 }
 
@@ -90,6 +78,13 @@ impl AsPointerObj for automerge::sync::State {
     type EnvRef<'a> = automerge::sync::State;
     fn classname() -> &'static str {
         am_classname!("AutomergeSys$SyncStatePointer")
+    }
+}
+
+impl AsPointerObj for PatchLog {
+    type EnvRef<'a> = am::patches::PatchLog;
+    fn classname() -> &'static str {
+        am_classname!("AutomergeSys$PatchLogPointer")
     }
 }
 
@@ -152,11 +147,5 @@ pub(crate) trait ToJniObject {
 impl ToJniObject for ChangeHash {
     fn to_jni_object<'b>(self, env: &jni::JNIEnv<'b>) -> Result<JObject<'b>, jni::errors::Error> {
         unsafe { changehash_to_jobject(env, &self) }
-    }
-}
-
-impl ToJniObject for (am::ChangeHash, Vec<am::Patch<char>>) {
-    fn to_jni_object<'a>(self, env: &jni::JNIEnv<'a>) -> Result<JObject<'a>, jni::errors::Error> {
-        hash_and_patches(env, &self.0, self.1)
     }
 }

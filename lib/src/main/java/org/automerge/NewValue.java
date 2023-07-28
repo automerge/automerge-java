@@ -13,13 +13,13 @@ import java.util.Date;
  * static methods on NewValue to create an instance.
  */
 public abstract class NewValue {
-	protected abstract <T> void set(Transaction<T> tx, ObjectId obj, String key);
+	protected abstract void set(Transaction tx, ObjectId obj, String key);
 
-	protected abstract <T> void set(Transaction<T> tx, ObjectId obj, long idx);
+	protected abstract void set(Transaction tx, ObjectId obj, long idx);
 
-	protected abstract <T> void insert(Transaction<T> tx, ObjectId obj, long idx);
+	protected abstract void insert(Transaction tx, ObjectId obj, long idx);
 
-	protected abstract <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
+	protected abstract void mark(Transaction tx, ObjectId obj, long start, long end, String markName,
 			ExpandMark expand);
 
 	/**
@@ -127,23 +127,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.setUint(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.setUint(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insertUint(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.markUint(obj, start, end, markName, value, expand);
 		}
 	}
@@ -157,23 +156,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}
@@ -187,23 +185,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}
@@ -217,23 +214,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}
@@ -247,23 +243,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}
@@ -271,23 +266,22 @@ public abstract class NewValue {
 	/** A new null value */
 	public static class Null extends NewValue {
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.setNull(obj, key);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.setNull(obj, idx);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insertNull(obj, idx);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.markNull(obj, start, end, markName, expand);
 		}
 	}
@@ -301,23 +295,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}
@@ -331,23 +324,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, new org.automerge.Counter(value));
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, new org.automerge.Counter(value));
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, new org.automerge.Counter(value));
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, new org.automerge.Counter(value), expand);
 		}
 	}
@@ -361,23 +353,22 @@ public abstract class NewValue {
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, String key) {
+		protected void set(Transaction tx, ObjectId obj, String key) {
 			tx.set(obj, key, value);
 		}
 
 		@Override
-		protected <T> void set(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void set(Transaction tx, ObjectId obj, long idx) {
 			tx.set(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void insert(Transaction<T> tx, ObjectId obj, long idx) {
+		protected void insert(Transaction tx, ObjectId obj, long idx) {
 			tx.insert(obj, idx, value);
 		}
 
 		@Override
-		protected <T> void mark(Transaction<T> tx, ObjectId obj, long start, long end, String markName,
-				ExpandMark expand) {
+		protected void mark(Transaction tx, ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 			tx.mark(obj, start, end, markName, value, expand);
 		}
 	}

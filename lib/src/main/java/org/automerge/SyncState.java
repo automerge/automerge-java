@@ -2,7 +2,6 @@ package org.automerge;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -60,8 +59,10 @@ public class SyncState {
 		doc.receiveSyncMessage(this.pointer.get(), message);
 	}
 
-	protected synchronized List<Patch> receiveSyncMessageForPatches(Document doc, byte[] message) {
-		return doc.receiveSyncMessageForPatches(this.pointer.get(), message);
+	protected synchronized void receiveSyncMessageLogPatches(Document doc, PatchLog patchLog, byte[] message) {
+		patchLog.with(p -> {
+			doc.receiveSyncMessageLogPatches(this.pointer.get(), p, message);
+		});
 	}
 
 	/**

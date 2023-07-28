@@ -10,26 +10,26 @@ class TestGet {
 	interface ValueCheck {
 	}
 
-	interface TestCase<T> extends ValueCheck {
-		void set(Transaction<T> tx, ObjectId obj, String key);
+	interface TestCase extends ValueCheck {
+		void set(Transaction tx, ObjectId obj, String key);
 
-		void set(Transaction<T> tx, ObjectId obj, long idx);
+		void set(Transaction tx, ObjectId obj, long idx);
 
 		void check(AmValue value);
 	}
 
-	<T> ArrayList<TestCase<T>> makeTestCases(Class<T> transactionType) {
-		ArrayList<TestCase<T>> testCases = new ArrayList<TestCase<T>>();
+	ArrayList<TestCase> makeTestCases() {
+		ArrayList<TestCase> testCases = new ArrayList<TestCase>();
 		// Uint
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, NewValue.uint(1));
 				// tx.setUint(obj, key, 1);
 			}
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, NewValue.uint(1));
 			}
 
@@ -39,14 +39,14 @@ class TestGet {
 			}
 		});
 		// Int
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, 1);
 			}
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, 1);
 			}
 
@@ -56,14 +56,14 @@ class TestGet {
 			}
 		});
 		// F64
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, 2.0);
 			}
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, 2.0);
 			}
 
@@ -73,14 +73,14 @@ class TestGet {
 			}
 		});
 		// Bool
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, true);
 			}
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, true);
 			}
 
@@ -90,13 +90,13 @@ class TestGet {
 			}
 		});
 		// Str
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, "hello");
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, "hello");
 			}
 
@@ -106,13 +106,13 @@ class TestGet {
 			}
 		});
 		// Bytes
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, new byte[]{1, 2, 3});
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, new byte[]{1, 2, 3});
 			}
 
@@ -122,13 +122,13 @@ class TestGet {
 			}
 		});
 		// Counter
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, new Counter(1));
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, new Counter(1));
 			}
 
@@ -138,15 +138,15 @@ class TestGet {
 			}
 		});
 		// Timestamp
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			private Date date = new Date();
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, date);
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, date);
 			}
 
@@ -156,13 +156,13 @@ class TestGet {
 			}
 		});
 		// Null
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				tx.set(obj, key, NewValue.NULL);
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				tx.set(obj, idx, NewValue.NULL);
 			}
 
@@ -172,15 +172,15 @@ class TestGet {
 			}
 		});
 		// List
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			ObjectId list;
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				list = tx.set(obj, key, ObjectType.LIST);
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				list = tx.set(obj, idx, ObjectType.LIST);
 			}
 
@@ -190,15 +190,15 @@ class TestGet {
 			}
 		});
 		// Map
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			ObjectId map;
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				map = tx.set(obj, key, ObjectType.MAP);
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				map = tx.set(obj, idx, ObjectType.MAP);
 			}
 
@@ -208,15 +208,15 @@ class TestGet {
 			}
 		});
 		// Text
-		testCases.add(new TestCase<T>() {
+		testCases.add(new TestCase() {
 			ObjectId text;
 
 			@Override
-			public void set(Transaction<T> tx, ObjectId obj, String key) {
+			public void set(Transaction tx, ObjectId obj, String key) {
 				text = tx.set(obj, key, ObjectType.TEXT);
 			}
 
-			public void set(Transaction<T> tx, ObjectId obj, long idx) {
+			public void set(Transaction tx, ObjectId obj, long idx) {
 				text = tx.set(obj, idx, ObjectType.TEXT);
 			}
 
@@ -230,23 +230,9 @@ class TestGet {
 
 	@Test
 	public void testGetMap() {
-		for (TestCase<ChangeHash> testCase : makeTestCases(ChangeHash.class)) {
+		for (TestCase testCase : makeTestCases()) {
 			Document doc = new Document();
-			try (Transaction<ChangeHash> tx = doc.startTransaction()) {
-				testCase.set(tx, ObjectId.ROOT, "key");
-				testCase.check(tx.get(ObjectId.ROOT, "key").get());
-				testCase.check(doc.get(ObjectId.ROOT, "key").get());
-				tx.commit();
-				testCase.check(doc.get(ObjectId.ROOT, "key").get());
-			}
-		}
-	}
-
-	@Test
-	public void testGetMapObserved() {
-		for (TestCase<HashAndPatches> testCase : makeTestCases(HashAndPatches.class)) {
-			Document doc = new Document();
-			try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+			try (Transaction tx = doc.startTransaction()) {
 				testCase.set(tx, ObjectId.ROOT, "key");
 				testCase.check(tx.get(ObjectId.ROOT, "key").get());
 				testCase.check(doc.get(ObjectId.ROOT, "key").get());
@@ -258,25 +244,9 @@ class TestGet {
 
 	@Test
 	public void testGetList() {
-		for (TestCase<ChangeHash> testCase : makeTestCases(ChangeHash.class)) {
+		for (TestCase testCase : makeTestCases()) {
 			Document doc = new Document();
-			try (Transaction<ChangeHash> tx = doc.startTransaction()) {
-				ObjectId list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
-				tx.insert(list, 0, NewValue.NULL);
-				testCase.set(tx, list, 0);
-				testCase.check(tx.get(list, 0).get());
-				testCase.check(doc.get(list, 0).get());
-				tx.commit();
-				testCase.check(doc.get(list, 0).get());
-			}
-		}
-	}
-
-	@Test
-	public void testGetListObserved() {
-		for (TestCase<HashAndPatches> testCase : makeTestCases(HashAndPatches.class)) {
-			Document doc = new Document();
-			try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+			try (Transaction tx = doc.startTransaction()) {
 				ObjectId list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 				tx.insert(list, 0, NewValue.NULL);
 				testCase.set(tx, list, 0);

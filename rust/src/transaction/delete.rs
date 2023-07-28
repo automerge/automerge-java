@@ -1,3 +1,4 @@
+use automerge::transaction::Transactable;
 use automerge_jni_macros::jni_fn;
 use jni::{
     objects::JString,
@@ -16,7 +17,7 @@ struct DeleteOp {
 impl TransactionOp for DeleteOp {
     type Output = ();
 
-    unsafe fn execute<T: super::Transaction>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
         let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
         match tx.delete(obj, self.key) {
             Ok(_) => {}

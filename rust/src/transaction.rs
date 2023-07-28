@@ -1,14 +1,12 @@
-use am::op_observer::HasPatches;
-use am::transaction::{Observed, UnObserved};
-use am::VecOpObserver;
+use am::transaction::Transactable;
 use automerge as am;
-use automerge::transaction::{Transactable, Transaction as AmTransaction};
 use automerge_jni_macros::jni_fn;
 use jni::{objects::JObject, sys::jobject};
 
-use crate::interop::{AsPointerObj, ToJniObject};
-use crate::java_option::make_optional;
-use crate::make_empty_option;
+use crate::{
+    interop::{changehash_to_jobject, AsPointerObj},
+    java_option::{make_empty_option, make_optional},
+};
 
 mod delete;
 mod increment;
@@ -18,60 +16,19 @@ mod set;
 mod splice;
 mod splice_text;
 
-trait Transaction: Transactable {
-    type Output: ToJniObject;
-    fn commit(self) -> Option<Self::Output>;
-    fn rollback(self);
-}
-
-impl<'a> Transaction for am::transaction::Transaction<'a, Observed<VecOpObserver>> {
-    type Output = (am::ChangeHash, Vec<am::Patch<char>>);
-
-    fn commit(self) -> Option<Self::Output> {
-        let (mut o, c) = am::transaction::Transaction::commit(self);
-        c.map(|c| (c, o.take_patches()))
-    }
-
-    fn rollback(self) {
-        am::transaction::Transaction::rollback(self);
-    }
-}
-
-impl<'a> Transaction for am::transaction::Transaction<'a, UnObserved> {
-    type Output = am::ChangeHash;
-    fn commit(self) -> Option<am::ChangeHash> {
-        am::transaction::Transaction::commit(self)
-    }
-
-    fn rollback(self) {
-        am::transaction::Transaction::rollback(self);
-    }
-}
-
 trait TransactionOp {
     type Output;
-    unsafe fn execute<T: Transaction>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output;
+    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output;
 }
 
 trait OwnedTransactionOp {
     type Output;
-    unsafe fn execute<T: Transaction>(self, env: jni::JNIEnv, tx: T) -> Self::Output;
+    unsafe fn execute(self, env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output;
 }
 
 unsafe fn do_tx_op<Op: TransactionOp>(env: jni::JNIEnv, tx_pointer: jobject, op: Op) -> Op::Output {
-    let jtx = JObject::from_raw(tx_pointer);
-    let is_observed = env
-        .is_instance_of(jtx, AmTransaction::<Observed<VecOpObserver>>::classname())
-        .unwrap();
-
-    if is_observed {
-        let tx = AmTransaction::<'_, Observed<VecOpObserver>>::from_pointer_obj(&env, tx_pointer)
-            .unwrap();
-        op.execute(env, tx)
-    } else {
-        let tx = AmTransaction::<'_, UnObserved>::from_pointer_obj(&env, tx_pointer).unwrap();
-        op.execute(env, tx)
-    }
+    let tx = am::transaction::Transaction::from_pointer_obj(&env, tx_pointer).unwrap();
+    op.execute(env, tx)
 }
 
 unsafe fn do_owned_tx_op<Op: OwnedTransactionOp>(
@@ -79,65 +36,40 @@ unsafe fn do_owned_tx_op<Op: OwnedTransactionOp>(
     tx_pointer: jobject,
     op: Op,
 ) -> Op::Output {
-    let jtx = JObject::from_raw(tx_pointer);
-    let is_observed = env
-        .is_instance_of(jtx, AmTransaction::<Observed<VecOpObserver>>::classname())
-        .unwrap();
-
-    if is_observed {
-        let tx =
-            AmTransaction::<'_, Observed<VecOpObserver>>::owned_from_pointer_obj(&env, tx_pointer)
-                .unwrap();
-        op.execute(env, *tx)
-    } else {
-        let tx = AmTransaction::<'_, UnObserved>::owned_from_pointer_obj(&env, tx_pointer).unwrap();
-        op.execute(env, *tx)
-    }
+    let tx = am::transaction::Transaction::owned_from_pointer_obj(&env, tx_pointer).unwrap();
+    op.execute(env, *tx)
 }
 
 struct Commit;
 
+pub(crate) const COMMITRESULT_CLASS: &str = am_classname!("CommitResult");
+
 impl OwnedTransactionOp for Commit {
     type Output = jobject;
 
-    unsafe fn execute<T: Transaction>(self, env: jni::JNIEnv, tx: T) -> Self::Output {
-        match tx.commit() {
-            Some(h) => {
-                let obj = h.to_jni_object(&env).unwrap();
-                make_optional(&env, obj.into()).unwrap().into_raw()
-                //let obj = match h.to_jni_object(&env) {
-                //Ok(o) => o,
-                //Err(e) => {
-                //env.exception_describe().unwrap();
-                //JObject::null()
-                //}
-                //};
-                //match make_optional(&env, obj.into()) {
-                //Ok(o) => o.into_raw(),
-                //Err(_) => {
-                //env.exception_describe().unwrap();
-                //JObject::null().into_raw()
-                //}
-                //}
-            }
-            None => make_empty_option(&env).unwrap().into_raw(),
-        }
+    unsafe fn execute(self, env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output {
+        let (hash, patches) = tx.commit();
+        let hash_jobject = hash
+            .map(|h| {
+                let hash_jobj = changehash_to_jobject(&env, &h)?;
+                make_optional(&env, hash_jobj.into())
+            })
+            .unwrap_or_else(|| make_empty_option(&env))
+            .unwrap();
+        let patches_jobject = JObject::from_raw(patches.to_pointer_obj(&env).unwrap());
+        let commit_result = env
+            .new_object(
+                COMMITRESULT_CLASS,
+                format!("(Ljava/util/Optional;L{};)V", am::PatchLog::classname()),
+                &[hash_jobject.into(), patches_jobject.into()],
+            )
+            .unwrap();
+        commit_result.into_raw()
     }
 }
-
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn commitObservedTransaction(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jobject,
-) -> jobject {
-    do_owned_tx_op(env, tx_pointer, Commit)
-}
-
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn commitUnobservedTransaction(
+pub unsafe extern "C" fn commitTransaction(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jobject,
@@ -150,8 +82,8 @@ struct Rollback;
 impl OwnedTransactionOp for Rollback {
     type Output = ();
 
-    unsafe fn execute<T: Transaction>(self, _env: jni::JNIEnv, tx: T) {
-        tx.rollback()
+    unsafe fn execute(self, _env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output {
+        tx.rollback();
     }
 }
 

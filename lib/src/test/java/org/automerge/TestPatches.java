@@ -2,6 +2,7 @@ package org.automerge;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +11,8 @@ class TestPatches {
 	@Test
 	public void testSetInMap() {
 		Document doc = new Document();
-		Transaction<HashAndPatches> tx = doc.startTransactionForPatches();
+		PatchLog patchlog = new PatchLog();
+		Transaction tx = doc.startTransaction(patchlog);
 		tx.set(ObjectId.ROOT, "uint", NewValue.uint(0));
 		tx.set(ObjectId.ROOT, "int", 1);
 		tx.set(ObjectId.ROOT, "float", 2.0);
@@ -25,7 +27,8 @@ class TestPatches {
 		ObjectId map = tx.set(ObjectId.ROOT, "map", ObjectType.MAP);
 		ObjectId text = tx.set(ObjectId.ROOT, "text", ObjectType.TEXT);
 
-		ArrayList<Patch> patches = tx.commit().get().patches;
+		tx.commit();
+		List<Patch> patches = doc.makePatches(patchlog);
 
 		assertPutMap(patches.get(0), ObjectId.ROOT, emptyPath(), "uint",
 				(AmValue value) -> Assertions.assertEquals(((AmValue.UInt) value).getValue(), 0));
@@ -73,20 +76,22 @@ class TestPatches {
 		assertPutMap(patches.get(11), ObjectId.ROOT, emptyPath(), "text", (AmValue value) -> {
 			Assertions.assertEquals(((AmValue.Text) value).getId(), text);
 		});
+		patchlog.free();
 	}
 
 	@Test
 	public void testSetInList() {
 		Document doc = new Document();
 		ObjectId list;
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 			for (int i = 0; i < 12; i++) {
 				tx.insert(list, i, NewValue.NULL);
 			}
 			tx.commit();
 		}
-		Transaction<HashAndPatches> tx = doc.startTransactionForPatches();
+		PatchLog patchLog = new PatchLog();
+		Transaction tx = doc.startTransaction(patchLog);
 		tx.set(list, 0, NewValue.uint(0));
 
 		tx.set(list, 1, 1);
@@ -107,7 +112,8 @@ class TestPatches {
 		ObjectId map = tx.set(list, 10, ObjectType.MAP);
 		ObjectId text = tx.set(list, 11, ObjectType.TEXT);
 
-		ArrayList<Patch> patches = tx.commit().get().patches;
+		tx.commit();
+		List<Patch> patches = doc.makePatches(patchLog);
 
 		assertSetInList(patches.get(0), list, PathBuilder.root("list").build(), 0, (AmValue value) -> {
 			Assertions.assertEquals(((AmValue.UInt) value).getValue(), 0);
@@ -164,11 +170,12 @@ class TestPatches {
 	public void testInsertInList() {
 		Document doc = new Document();
 		ObjectId list;
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 			tx.commit();
 		}
-		Transaction<HashAndPatches> tx = doc.startTransactionForPatches();
+		PatchLog patchLog = new PatchLog();
+		Transaction tx = doc.startTransaction(patchLog);
 
 		tx.insert(list, 0, NewValue.uint(0));
 		tx.insert(list, 1, 1);
@@ -184,7 +191,8 @@ class TestPatches {
 		ObjectId map = tx.insert(list, 10, ObjectType.MAP);
 		ObjectId text = tx.insert(list, 11, ObjectType.TEXT);
 
-		ArrayList<Patch> patches = tx.commit().get().patches;
+		tx.commit();
+		List<Patch> patches = doc.makePatches(patchLog);
 		Assertions.assertEquals(patches.size(), 1);
 
 		Patch patch = patches.get(0);
@@ -213,15 +221,18 @@ class TestPatches {
 	public void testSpliceText() {
 		Document doc = new Document();
 		ObjectId text;
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			text = tx.set(ObjectId.ROOT, "text", ObjectType.TEXT);
 			tx.spliceText(text, 0, 0, "Hello");
 			tx.commit();
 		}
 
-		Transaction<HashAndPatches> tx = doc.startTransactionForPatches();
+		PatchLog patchLog = new PatchLog();
+		Transaction tx = doc.startTransaction(patchLog);
 		tx.spliceText(text, 5, 0, " world");
-		ArrayList<Patch> patches = tx.commit().get().patches;
+
+		tx.commit();
+		List<Patch> patches = doc.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -238,15 +249,17 @@ class TestPatches {
 	public void testFlagConflictMap() {
 		Document doc1 = new Document("bbbb".getBytes());
 		Document doc2 = new Document("aaaa".getBytes());
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value_1");
 			tx.commit();
 		}
-		try (Transaction<ChangeHash> tx = doc2.startTransaction()) {
+		try (Transaction tx = doc2.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value_2");
 			tx.commit();
 		}
-		ArrayList<Patch> patches = doc2.mergeForPatches(doc1);
+		PatchLog patchLog = new PatchLog();
+		doc2.merge(doc1, patchLog);
+		List<Patch> patches = doc2.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -261,23 +274,25 @@ class TestPatches {
 	public void testFlagConflictList() {
 		Document doc1 = new Document("bbbb".getBytes());
 		ObjectId list;
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 			tx.insert(list, 0, NewValue.NULL);
 			tx.commit();
 		}
 
 		Document doc2 = doc1.fork("aaaa".getBytes());
-		try (Transaction<ChangeHash> tx = doc2.startTransaction()) {
+		try (Transaction tx = doc2.startTransaction()) {
 			tx.set(list, 0, "value_2");
 			tx.commit();
 		}
-		try (Transaction<ChangeHash> tx = doc1.startTransaction()) {
+		try (Transaction tx = doc1.startTransaction()) {
 			tx.set(list, 0, "value_1");
 			tx.commit();
 		}
 
-		ArrayList<Patch> patches = doc2.mergeForPatches(doc1);
+		PatchLog patchLog = new PatchLog();
+		doc2.merge(doc1, patchLog);
+		List<Patch> patches = doc2.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -291,16 +306,17 @@ class TestPatches {
 	@Test
 	public void testIncrementInMap() {
 		Document doc = new Document();
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			tx.set(ObjectId.ROOT, "counter", new Counter(0));
 			tx.commit();
 		}
 
-		ArrayList<Patch> patches;
-		try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+		PatchLog patchLog = new PatchLog();
+		try (Transaction tx = doc.startTransaction(patchLog)) {
 			tx.increment(ObjectId.ROOT, "counter", 5);
-			patches = tx.commit().get().patches;
+			tx.commit();
 		}
+		List<Patch> patches = doc.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -314,17 +330,18 @@ class TestPatches {
 	public void testIncrementInList() {
 		Document doc = new Document();
 		ObjectId list;
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 			tx.insert(list, 0, new Counter(10));
 			tx.commit();
 		}
 
-		ArrayList<Patch> patches;
-		try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+		PatchLog patchLog = new PatchLog();
+		try (Transaction tx = doc.startTransaction(patchLog)) {
 			tx.increment(list, 0, 5);
-			patches = tx.commit().get().patches;
+			tx.commit();
 		}
+		List<Patch> patches = doc.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -337,16 +354,18 @@ class TestPatches {
 	@Test
 	public void testDeleteInMap() {
 		Document doc = new Document();
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
 
-		ArrayList<Patch> patches;
-		try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+		PatchLog patchLog = new PatchLog();
+		try (Transaction tx = doc.startTransaction(patchLog)) {
 			tx.delete(ObjectId.ROOT, "key");
-			patches = tx.commit().get().patches;
+			tx.commit();
 		}
+
+		List<Patch> patches = doc.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);
@@ -360,19 +379,21 @@ class TestPatches {
 	public void testDeleteInList() {
 		Document doc = new Document();
 		ObjectId list;
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 			tx.insert(list, 0, "value");
 			tx.insert(list, 1, "value2");
 			tx.commit();
 		}
 
-		ArrayList<Patch> patches;
-		try (Transaction<HashAndPatches> tx = doc.startTransactionForPatches()) {
+		PatchLog patchLog = new PatchLog();
+		try (Transaction tx = doc.startTransaction(patchLog)) {
 			tx.delete(list, 0);
 			tx.delete(list, 0);
-			patches = tx.commit().get().patches;
+			tx.commit();
 		}
+		List<Patch> patches = doc.makePatches(patchLog);
+
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch1 = patches.get(0);
 		Assertions.assertEquals(patch1.getObj(), list);
@@ -385,13 +406,16 @@ class TestPatches {
 	@Test
 	public void testApplyEncodedChangesForPatches() {
 		Document doc = new Document();
-		try (Transaction<ChangeHash> tx = doc.startTransaction()) {
+		try (Transaction tx = doc.startTransaction()) {
 			tx.set(ObjectId.ROOT, "key", "value");
 			tx.commit();
 		}
 		byte[] changes = doc.encodeChangesSince(new ChangeHash[]{});
 		Document doc2 = new Document();
-		ArrayList<Patch> patches = doc2.applyEncodedChangesForPatches(changes);
+		PatchLog patchLog = new PatchLog();
+		doc2.applyEncodedChanges(changes, patchLog);
+
+		List<Patch> patches = doc2.makePatches(patchLog);
 
 		Assertions.assertEquals(patches.size(), 1);
 		Patch patch = patches.get(0);

@@ -25,7 +25,7 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
     ) -> Self::Output {
         let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
         let value: String = env.get_string(self.value).unwrap().into();
-        match tx.splice_text(obj, self.idx as usize, self.delete as usize, &value) {
+        match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
             Ok(_) => {}
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();

@@ -11,23 +11,15 @@ class AutomergeSys {
 		private long pointer;
 	}
 
-	protected abstract class TransactionPointer {
-		private TransactionPointer() {
-		}
-	}
-
-	protected class UnobservedTransactionPointer extends TransactionPointer {
+	protected class TransactionPointer {
 		private long pointer;
-	}
-
-	protected class ObservedTransactionPointer extends TransactionPointer {
-		private long pointer;
-		// Just hanging on to this reference to make sure it's alive for the
-		// duration of the transaction
-		private OpObserver observer;
 	}
 
 	protected class SyncStatePointer {
+		private long pointer;
+	}
+
+	protected class PatchLogPointer {
 		private long pointer;
 	}
 
@@ -55,19 +47,24 @@ class AutomergeSys {
 
 	public static native void mergeDoc(DocPointer pointer, DocPointer other);
 
-	public static native ArrayList<Patch> mergeDocObserved(DocPointer pointer, DocPointer other);
+	public static native void mergeDocLogPatches(DocPointer pointer, DocPointer other, PatchLogPointer patchLog);
 
 	public static native byte[] getActorId(DocPointer pointer);
 
-	public static native UnobservedTransactionPointer startTransaction(DocPointer doc);
+	public static native TransactionPointer startTransaction(DocPointer doc);
 
-	public static native ObservedTransactionPointer startObservedTransaction(DocPointer doc);
+	public static native TransactionPointer startTransactionLogPatches(DocPointer doc, PatchLogPointer patchLog);
+
+	public static native TransactionPointer startTransactionAt(DocPointer doc, PatchLogPointer patchLog,
+			ChangeHash[] heads);
 
 	public static native byte[] encodeChangesSince(DocPointer doc, ChangeHash[] heads);
 
 	public static native void applyEncodedChanges(DocPointer doc, byte[] changes);
 
-	public static native ArrayList<Patch> applyEncodedChangesObserved(DocPointer doc, byte[] changes);
+	public static native void applyEncodedChangesLogPatches(DocPointer doc, PatchLogPointer patchLog, byte[] changes);
+
+	public static native ArrayList<Patch> makePatches(DocPointer doc, PatchLogPointer patchLog);
 
 	// Read methods
 	public static native Optional<AmValue> getInMapInDoc(DocPointer doc, ObjectId obj, String key);
@@ -277,9 +274,7 @@ class AutomergeSys {
 			ExpandMark expand);
 
 	// Transactions
-	public static native Optional<ChangeHash> commitUnobservedTransaction(UnobservedTransactionPointer tx);
-
-	public static native Optional<HashAndPatches> commitObservedTransaction(ObservedTransactionPointer tx);
+	public static native CommitResult commitTransaction(TransactionPointer tx);
 
 	public static native void rollbackTransaction(TransactionPointer tx);
 
@@ -306,8 +301,8 @@ class AutomergeSys {
 
 	public static native void receiveSyncMessage(SyncStatePointer syncState, DocPointer doc, byte[] message);
 
-	public static native ArrayList<Patch> receiveSyncMessageForPatches(SyncStatePointer syncState, DocPointer doc,
-			byte[] message);
+	public static native void receiveSyncMessageLogPatches(SyncStatePointer syncState, DocPointer doc,
+			PatchLogPointer patchLog, byte[] message);
 
 	public static native SyncStatePointer decodeSyncState(byte[] encoded);
 
@@ -316,4 +311,10 @@ class AutomergeSys {
 	public static native void freeSyncState(SyncStatePointer syncState);
 
 	public static native ChangeHash[] syncStateSharedHeads(SyncStatePointer syncState);
+
+	public static native PatchLogPointer createPatchLog();
+
+	public static native void freePatchLog(PatchLogPointer pointer);
+
+	public static native ArrayList<Patch> diff(DocPointer doc, ChangeHash[] before, ChangeHash[] after);
 }

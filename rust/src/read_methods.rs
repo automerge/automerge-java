@@ -1,5 +1,7 @@
-use am::transaction::{Observed, UnObserved};
-use am::{ReadDoc, VecOpObserver};
+use std::ops::RangeBounds;
+
+use am::iter::{ListRangeItem, MapRangeItem};
+use am::ReadDoc;
 use jni::objects::JObject;
 use jni::sys::{jlong, jobject};
 
@@ -224,8 +226,8 @@ impl SomeReadPointer {
                 JObject::null(),
             )
             .unwrap();
-        for (idx, (_, v, oid)) in items.into_iter().enumerate() {
-            let val = to_amvalue(&env, (v, oid)).unwrap();
+        for (idx, ListRangeItem { value, id, .. }) in items.into_iter().enumerate() {
+            let val = to_amvalue(&env, (value, id)).unwrap();
             env.set_object_array_element(jitems, idx as i32, val)
                 .unwrap();
         }
@@ -264,7 +266,7 @@ impl SomeReadPointer {
                 JObject::null(),
             )
             .unwrap();
-        for (i, (key, value, id)) in entries.into_iter().enumerate() {
+        for (i, MapRangeItem { key, value, id, .. }) in entries.into_iter().enumerate() {
             let entry = env.alloc_object(am_classname!("MapEntry")).unwrap();
             env.set_field(
                 entry,
@@ -363,13 +365,7 @@ impl SomeReadPointer {
 
 // Existential type over all implementations of ReadOps
 enum SomeRead<'a> {
-    Observed(
-        &'a mut automerge::transaction::Transaction<
-            'a,
-            automerge::transaction::Observed<VecOpObserver>,
-        >,
-    ),
-    UnObserved(&'a mut automerge::transaction::Transaction<'a, automerge::transaction::UnObserved>),
+    Transaction(&'a mut automerge::transaction::Transaction<'a>),
     Doc(&'a automerge::Automerge),
 }
 
@@ -382,21 +378,8 @@ impl<'a> SomeRead<'a> {
     }
 
     pub(crate) unsafe fn from_tx_pointer(env: jni::JNIEnv<'a>, pointer: jobject) -> SomeRead<'a> {
-        let jtx = jni::objects::JObject::from_raw(pointer);
-        let is_observed = env
-            .is_instance_of(
-                jtx,
-                am_classname!("AutomergeSys$ObservedTransactionPointer"),
-            )
-            .unwrap();
-        if is_observed {
-            let tx = AmTransaction::<'a, Observed<VecOpObserver>>::from_pointer_obj(&env, pointer)
-                .unwrap();
-            Self::Observed(tx)
-        } else {
-            let tx = AmTransaction::<UnObserved>::from_pointer_obj(&env, pointer).unwrap();
-            SomeRead::UnObserved(tx)
-        }
+        let tx = AmTransaction::<'a>::from_pointer_obj(&env, pointer).unwrap();
+        Self::Transaction(tx)
     }
 
     pub(crate) unsafe fn from_doc_pointer(env: jni::JNIEnv<'a>, pointer: jobject) -> SomeRead<'a> {
@@ -412,8 +395,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         prop: P,
     ) -> Result<Option<(am::Value<'_>, am::ObjId)>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.get(obj, prop),
-            SomeRead::UnObserved(tx) => tx.get(obj, prop),
+            SomeRead::Transaction(tx) => tx.get(obj, prop),
             SomeRead::Doc(doc) => doc.get(obj, prop),
         }
     }
@@ -425,8 +407,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         heads: &[am::ChangeHash],
     ) -> Result<Option<(am::Value<'_>, am::ObjId)>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.get_at(obj, prop, heads),
-            SomeRead::UnObserved(tx) => tx.get_at(obj, prop, heads),
+            SomeRead::Transaction(tx) => tx.get_at(obj, prop, heads),
             SomeRead::Doc(doc) => doc.get_at(obj, prop, heads),
         }
     }
@@ -437,8 +418,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         prop: P,
     ) -> Result<Vec<(am::Value<'_>, am::ObjId)>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.get_all(obj, prop),
-            SomeRead::UnObserved(tx) => tx.get_all(obj, prop),
+            SomeRead::Transaction(tx) => tx.get_all(obj, prop),
             SomeRead::Doc(doc) => doc.get_all(obj, prop),
         }
     }
@@ -450,57 +430,51 @@ impl<'a> ReadDoc for SomeRead<'a> {
         heads: &[am::ChangeHash],
     ) -> Result<Vec<(am::Value<'_>, am::ObjId)>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.get_all_at(obj, prop, heads),
-            SomeRead::UnObserved(tx) => tx.get_all_at(obj, prop, heads),
+            SomeRead::Transaction(tx) => tx.get_all_at(obj, prop, heads),
             SomeRead::Doc(doc) => doc.get_all_at(obj, prop, heads),
         }
     }
 
-    fn keys<O: AsRef<am::ObjId>>(&self, obj: O) -> am::Keys<'_, '_> {
+    fn keys<O: AsRef<am::ObjId>>(&self, obj: O) -> am::iter::Keys<'_> {
         match self {
-            SomeRead::Observed(tx) => tx.keys(obj),
-            SomeRead::UnObserved(tx) => tx.keys(obj),
+            SomeRead::Transaction(tx) => tx.keys(obj),
             SomeRead::Doc(doc) => doc.keys(obj),
         }
     }
 
-    fn keys_at<O: AsRef<am::ObjId>>(&self, obj: O, heads: &[am::ChangeHash]) -> am::KeysAt<'_, '_> {
+    fn keys_at<O: AsRef<am::ObjId>>(&self, obj: O, heads: &[am::ChangeHash]) -> am::iter::Keys<'_> {
         match self {
-            SomeRead::Observed(tx) => tx.keys_at(obj, heads),
-            SomeRead::UnObserved(tx) => tx.keys_at(obj, heads),
+            SomeRead::Transaction(tx) => tx.keys_at(obj, heads),
             SomeRead::Doc(doc) => doc.keys_at(obj, heads),
         }
     }
 
     fn object_type<O: AsRef<am::ObjId>>(&self, obj: O) -> Result<am::ObjType, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.object_type(obj),
-            SomeRead::UnObserved(tx) => tx.object_type(obj),
+            SomeRead::Transaction(tx) => tx.object_type(obj),
             SomeRead::Doc(doc) => doc.object_type(obj),
         }
     }
 
-    fn map_range<O: AsRef<am::ObjId>, R: std::ops::RangeBounds<String>>(
-        &self,
+    fn map_range<'b, O: AsRef<am::ObjId>, R: RangeBounds<String> + 'b>(
+        &'b self,
         obj: O,
         range: R,
-    ) -> am::MapRange<'_, R> {
+    ) -> am::iter::MapRange<'b, R> {
         match self {
-            SomeRead::Observed(tx) => tx.map_range(obj, range),
-            SomeRead::UnObserved(tx) => tx.map_range(obj, range),
+            SomeRead::Transaction(tx) => tx.map_range(obj, range),
             SomeRead::Doc(doc) => doc.map_range(obj, range),
         }
     }
 
-    fn map_range_at<O: AsRef<am::ObjId>, R: std::ops::RangeBounds<String>>(
-        &self,
+    fn map_range_at<'b, O: AsRef<am::ObjId>, R: RangeBounds<String> + 'b>(
+        &'b self,
         obj: O,
         range: R,
         heads: &[am::ChangeHash],
-    ) -> am::MapRangeAt<'_, R> {
+    ) -> am::iter::MapRange<'b, R> {
         match self {
-            SomeRead::Observed(tx) => tx.map_range_at(obj, range, heads),
-            SomeRead::UnObserved(tx) => tx.map_range_at(obj, range, heads),
+            SomeRead::Transaction(tx) => tx.map_range_at(obj, range, heads),
             SomeRead::Doc(doc) => doc.map_range_at(obj, range, heads),
         }
     }
@@ -509,10 +483,9 @@ impl<'a> ReadDoc for SomeRead<'a> {
         &self,
         obj: O,
         range: R,
-    ) -> am::ListRange<'_, R> {
+    ) -> am::iter::ListRange<'_, R> {
         match self {
-            SomeRead::Observed(tx) => tx.list_range(obj, range),
-            SomeRead::UnObserved(tx) => tx.list_range(obj, range),
+            SomeRead::Transaction(tx) => tx.list_range(obj, range),
             SomeRead::Doc(doc) => doc.list_range(obj, range),
         }
     }
@@ -522,34 +495,30 @@ impl<'a> ReadDoc for SomeRead<'a> {
         obj: O,
         range: R,
         heads: &[am::ChangeHash],
-    ) -> am::ListRangeAt<'_, R> {
+    ) -> am::iter::ListRange<'_, R> {
         match self {
-            SomeRead::Observed(tx) => tx.list_range_at(obj, range, heads),
-            SomeRead::UnObserved(tx) => tx.list_range_at(obj, range, heads),
+            SomeRead::Transaction(tx) => tx.list_range_at(obj, range, heads),
             SomeRead::Doc(doc) => doc.list_range_at(obj, range, heads),
         }
     }
 
     fn length<O: AsRef<am::ObjId>>(&self, obj: O) -> usize {
         match self {
-            SomeRead::Observed(tx) => tx.length(obj),
-            SomeRead::UnObserved(tx) => tx.length(obj),
+            SomeRead::Transaction(tx) => tx.length(obj),
             SomeRead::Doc(doc) => doc.length(obj),
         }
     }
 
     fn length_at<O: AsRef<am::ObjId>>(&self, obj: O, heads: &[am::ChangeHash]) -> usize {
         match self {
-            SomeRead::Observed(tx) => tx.length_at(obj, heads),
-            SomeRead::UnObserved(tx) => tx.length_at(obj, heads),
+            SomeRead::Transaction(tx) => tx.length_at(obj, heads),
             SomeRead::Doc(doc) => doc.length_at(obj, heads),
         }
     }
 
     fn text<O: AsRef<am::ObjId>>(&self, obj: O) -> Result<String, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.text(obj),
-            SomeRead::UnObserved(tx) => tx.text(obj),
+            SomeRead::Transaction(tx) => tx.text(obj),
             SomeRead::Doc(doc) => doc.text(obj),
         }
     }
@@ -560,59 +529,57 @@ impl<'a> ReadDoc for SomeRead<'a> {
         heads: &[am::ChangeHash],
     ) -> Result<String, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.text_at(obj, heads),
-            SomeRead::UnObserved(tx) => tx.text_at(obj, heads),
+            SomeRead::Transaction(tx) => tx.text_at(obj, heads),
             SomeRead::Doc(doc) => doc.text_at(obj, heads),
         }
     }
 
     fn parents<O: AsRef<am::ObjId>>(&self, obj: O) -> Result<am::Parents<'_>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.parents(obj),
-            SomeRead::UnObserved(tx) => tx.parents(obj),
+            SomeRead::Transaction(tx) => tx.parents(obj),
             SomeRead::Doc(doc) => doc.parents(obj),
         }
     }
 
-    fn path_to_object<O: AsRef<am::ObjId>>(
+    fn parents_at<O: AsRef<am::ObjId>>(
         &self,
         obj: O,
-    ) -> Result<Vec<(am::ObjId, am::Prop)>, am::AutomergeError> {
+        heads: &[am::ChangeHash],
+    ) -> Result<am::Parents<'_>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.path_to_object(obj),
-            SomeRead::UnObserved(tx) => tx.path_to_object(obj),
-            SomeRead::Doc(doc) => doc.path_to_object(obj),
+            SomeRead::Transaction(tx) => tx.parents_at(obj, heads),
+            SomeRead::Doc(doc) => doc.parents_at(obj, heads),
         }
     }
 
-    fn values<O: AsRef<am::ObjId>>(&self, obj: O) -> am::Values<'_> {
+    fn values<O: AsRef<am::ObjId>>(&self, obj: O) -> am::iter::Values<'_> {
         match self {
-            SomeRead::Observed(tx) => tx.values(obj),
-            SomeRead::UnObserved(tx) => tx.values(obj),
+            SomeRead::Transaction(tx) => tx.values(obj),
             SomeRead::Doc(doc) => doc.values(obj),
         }
     }
 
-    fn values_at<O: AsRef<am::ObjId>>(&self, obj: O, heads: &[am::ChangeHash]) -> am::Values<'_> {
+    fn values_at<O: AsRef<am::ObjId>>(
+        &self,
+        obj: O,
+        heads: &[am::ChangeHash],
+    ) -> am::iter::Values<'_> {
         match self {
-            SomeRead::Observed(tx) => tx.values_at(obj, heads),
-            SomeRead::UnObserved(tx) => tx.values_at(obj, heads),
+            SomeRead::Transaction(tx) => tx.values_at(obj, heads),
             SomeRead::Doc(doc) => doc.values_at(obj, heads),
         }
     }
 
     fn get_missing_deps(&self, heads: &[am::ChangeHash]) -> Vec<am::ChangeHash> {
         match self {
-            SomeRead::Observed(tx) => tx.get_missing_deps(heads),
-            SomeRead::UnObserved(tx) => tx.get_missing_deps(heads),
+            SomeRead::Transaction(tx) => tx.get_missing_deps(heads),
             SomeRead::Doc(doc) => doc.get_missing_deps(heads),
         }
     }
 
     fn get_change_by_hash(&self, hash: &am::ChangeHash) -> Option<&am::Change> {
         match self {
-            SomeRead::Observed(tx) => tx.get_change_by_hash(hash),
-            SomeRead::UnObserved(tx) => tx.get_change_by_hash(hash),
+            SomeRead::Transaction(tx) => tx.get_change_by_hash(hash),
             SomeRead::Doc(doc) => doc.get_change_by_hash(hash),
         }
     }
@@ -622,8 +589,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         obj: O,
     ) -> Result<Vec<am::marks::Mark<'_>>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.marks(obj),
-            SomeRead::UnObserved(tx) => tx.marks(obj),
+            SomeRead::Transaction(tx) => tx.marks(obj),
             SomeRead::Doc(doc) => doc.marks(obj),
         }
     }
@@ -634,9 +600,32 @@ impl<'a> ReadDoc for SomeRead<'a> {
         heads: &[am::ChangeHash],
     ) -> Result<Vec<am::marks::Mark<'_>>, am::AutomergeError> {
         match self {
-            SomeRead::Observed(tx) => tx.marks_at(obj, heads),
-            SomeRead::UnObserved(tx) => tx.marks_at(obj, heads),
+            SomeRead::Transaction(tx) => tx.marks_at(obj, heads),
             SomeRead::Doc(doc) => doc.marks_at(obj, heads),
+        }
+    }
+
+    fn get_cursor<O: AsRef<am::ObjId>>(
+        &self,
+        obj: O,
+        position: usize,
+        at: Option<&[am::ChangeHash]>,
+    ) -> Result<am::Cursor, am::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.get_cursor(obj, position, at),
+            SomeRead::Doc(doc) => doc.get_cursor(obj, position, at),
+        }
+    }
+
+    fn get_cursor_position<O: AsRef<am::ObjId>>(
+        &self,
+        obj: O,
+        cursor: &am::Cursor,
+        at: Option<&[am::ChangeHash]>,
+    ) -> Result<usize, am::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.get_cursor_position(obj, cursor, at),
+            SomeRead::Doc(doc) => doc.get_cursor_position(obj, cursor, at),
         }
     }
 }
@@ -644,8 +633,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
 impl<'a> ReadOps for SomeRead<'a> {
     fn heads(&self) -> Vec<am::ChangeHash> {
         match self {
-            SomeRead::Observed(tx) => tx.heads(),
-            SomeRead::UnObserved(tx) => tx.heads(),
+            SomeRead::Transaction(tx) => tx.heads(),
             SomeRead::Doc(doc) => doc.heads(),
         }
     }

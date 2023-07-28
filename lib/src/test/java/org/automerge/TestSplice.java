@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 public final class TestSplice {
 	private Document doc;
-	private Transaction<ChangeHash> tx;
+	private Transaction tx;
 	private ObjectId list;
 
 	@FunctionalInterface

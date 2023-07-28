@@ -86,16 +86,14 @@ public abstract class PatchAction {
 		}
 	}
 
-	/** A valule was inserted into a list */
+	/** Some values were inserted into a list */
 	public static class Insert extends PatchAction {
 		private final long index;
 		private final ArrayList<AmValue> values;
-		private final boolean conflict;
 
-		protected Insert(long index, AmValue[] values, boolean conflict) {
+		protected Insert(long index, AmValue[] values) {
 			this.index = index;
 			this.values = new ArrayList<>(Arrays.asList(values));
-			this.conflict = conflict;
 		}
 
 		/**
@@ -114,15 +112,6 @@ public abstract class PatchAction {
 		 */
 		public ArrayList<AmValue> getValues() {
 			return values;
-		}
-
-		/**
-		 * Whether there is now a conflict at this index
-		 *
-		 * @return Whether there is now a conflict at this index
-		 */
-		public boolean isConflict() {
-			return conflict;
 		}
 	}
 
@@ -246,6 +235,24 @@ public abstract class PatchAction {
 		 */
 		public org.automerge.Mark[] getMarks() {
 			return marks;
+		}
+	}
+
+	/** A property which was already in the document is now conflicted */
+	public static class FlagConflict {
+		private final Prop property;
+
+		protected FlagConflict(Prop property) {
+			this.property = property;
+		}
+
+		/**
+		 * The property that was conflicted
+		 *
+		 * @return The property that was conflicted
+		 */
+		public Prop getProperty() {
+			return property;
 		}
 	}
 }

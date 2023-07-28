@@ -6,14 +6,14 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class TestGetAll {
-	interface TestCase<T> {
-		void init(Transaction<T> tx, double value);
+	interface TestCase {
+		void init(Transaction tx, double value);
 
-		void branch1(Transaction<T> tx, double value);
+		void branch1(Transaction tx, double value);
 
-		void branch2(Transaction<T> tx, double value);
+		void branch2(Transaction tx, double value);
 
-		void merge(Transaction<T> tx, double value);
+		void merge(Transaction tx, double value);
 
 		Conflicts getConflicts(Read doc);
 
@@ -26,41 +26,25 @@ class TestGetAll {
 	}
 
 	@Test
-	public void testGetAllInMapObserved() {
-		runMap(doc -> {
-			return doc.startTransactionForPatches();
-		});
-	}
-
-	@Test
 	public void testGetAllInList() {
 		runList(doc -> doc.startTransaction());
 	}
 
-	@Test
-	public void testGetAllInListObserved() {
-		runList(doc -> {
-			OpObserver obs = new OpObserver() {
-			};
-			return doc.startTransactionForPatches();
-		});
-	}
-
-	public <T> void runMap(Function<Document, Transaction<T>> createTx) {
-		run(new TestCase<T>() {
-			public void init(Transaction<T> tx, double value) {
+	public void runMap(Function<Document, Transaction> createTx) {
+		run(new TestCase() {
+			public void init(Transaction tx, double value) {
 				tx.set(ObjectId.ROOT, "key", value);
 			}
 
-			public void branch1(Transaction<T> tx, double value) {
+			public void branch1(Transaction tx, double value) {
 				tx.set(ObjectId.ROOT, "key", value);
 			}
 
-			public void branch2(Transaction<T> tx, double value) {
+			public void branch2(Transaction tx, double value) {
 				tx.set(ObjectId.ROOT, "key", value);
 			}
 
-			public void merge(Transaction<T> tx, double value) {
+			public void merge(Transaction tx, double value) {
 				tx.set(ObjectId.ROOT, "key", value);
 			}
 
@@ -74,24 +58,24 @@ class TestGetAll {
 		}, createTx);
 	}
 
-	public <T> void runList(Function<Document, Transaction<T>> createTx) {
-		run(new TestCase<T>() {
+	public void runList(Function<Document, Transaction> createTx) {
+		run(new TestCase() {
 			ObjectId list;
 
-			public void init(Transaction<T> tx, double value) {
+			public void init(Transaction tx, double value) {
 				list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 				tx.insert(list, 0, value);
 			}
 
-			public void branch1(Transaction<T> tx, double value) {
+			public void branch1(Transaction tx, double value) {
 				tx.set(list, 0, value);
 			}
 
-			public void branch2(Transaction<T> tx, double value) {
+			public void branch2(Transaction tx, double value) {
 				tx.set(list, 0, value);
 			}
 
-			public void merge(Transaction<T> tx, double value) {
+			public void merge(Transaction tx, double value) {
 				tx.set(list, 0, value);
 			}
 
@@ -105,25 +89,25 @@ class TestGetAll {
 		}, createTx);
 	}
 
-	<T> void run(TestCase<T> testCase, Function<Document, Transaction<T>> createTx) {
+	void run(TestCase testCase, Function<Document, Transaction> createTx) {
 		Document doc = new Document();
-		try (Transaction<T> tx = createTx.apply(doc)) {
+		try (Transaction tx = createTx.apply(doc)) {
 			testCase.init(tx, 1.23);
 			tx.commit();
 		}
 		Document doc2 = doc.fork();
-		try (Transaction<T> tx = createTx.apply(doc)) {
+		try (Transaction tx = createTx.apply(doc)) {
 			testCase.branch1(tx, 4.56);
 			tx.commit();
 		}
-		try (Transaction<T> tx = createTx.apply(doc2)) {
+		try (Transaction tx = createTx.apply(doc2)) {
 			testCase.branch2(tx, 7.89);
 			tx.commit();
 		}
 		doc.merge(doc2);
 		ChangeHash[] heads = doc.getHeads();
 		// Check it works with an open transaction
-		Transaction<T> tx = createTx.apply(doc);
+		Transaction tx = createTx.apply(doc);
 		Conflicts conflicts = testCase.getConflicts(doc);
 		assertConflicts(conflicts);
 
@@ -137,7 +121,7 @@ class TestGetAll {
 		assertConflicts(conflicts);
 
 		// create a merge commit
-		try (Transaction<T> tx2 = createTx.apply(doc)) {
+		try (Transaction tx2 = createTx.apply(doc)) {
 			testCase.merge(tx2, 2.00);
 			tx2.commit();
 		}

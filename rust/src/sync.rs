@@ -1,15 +1,14 @@
 use automerge::{
-    op_observer::HasPatches,
+    self as am,
     sync::{Message, State as SyncState, SyncDoc},
-    Automerge, VecOpObserver,
+    Automerge,
 };
 use automerge_jni_macros::jni_fn;
 use jni::{objects::JObject, sys::jobject};
 
 use crate::{
-    interop::{AsPointerObj, CHANGEHASH_CLASS, changehash_to_jobject},
+    interop::{changehash_to_jobject, AsPointerObj, CHANGEHASH_CLASS},
     java_option::{make_empty_option, make_optional},
-    patches::to_patch_arraylist,
     AUTOMERGE_EXCEPTION,
 };
 
@@ -72,31 +71,31 @@ pub unsafe extern "C" fn receiveSyncMessage(
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn receiveSyncMessageForPatches(
+pub unsafe extern "C" fn receiveSyncMessageLogPatches(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
     state_pointer: jobject,
     doc_pointer: jobject,
+    patch_log_pointer: jobject,
     messaage_pointer: jobject,
-) -> jobject {
+) {
     let state = SyncState::from_pointer_obj(&env, state_pointer).unwrap();
     let doc = Automerge::from_pointer_obj(&env, doc_pointer).unwrap();
+    let patch_log = am::PatchLog::from_pointer_obj(&env, patch_log_pointer).unwrap();
     let message_bytes = env.convert_byte_array(messaage_pointer).unwrap();
     let message = match Message::decode(&message_bytes) {
         Ok(m) => m,
         Err(e) => {
             env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
-            return JObject::null().into_raw();
+            return;
         }
     };
-    let mut obs =
-        VecOpObserver::default().with_text_rep(automerge::op_observer::TextRepresentation::String);
-    if let Err(e) = doc.receive_sync_message_with(state, message, &mut obs) {
-        env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
-        return JObject::null().into_raw();
+    match doc.receive_sync_message_log_patches(state, message, patch_log) {
+        Ok(_) => {}
+        Err(e) => {
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+        }
     }
-    let patches = obs.take_patches();
-    to_patch_arraylist(&env, patches).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -145,13 +144,17 @@ pub unsafe extern "C" fn freeSyncState(
 #[jni_fn]
 pub unsafe extern "C" fn syncStateSharedHeads(
     env: jni::JNIEnv,
-    _class: jni::objects::JClass, 
+    _class: jni::objects::JClass,
     state_pointer: jobject,
 ) -> jobject {
     let state = SyncState::from_pointer_obj(&env, state_pointer).unwrap();
 
     let heads_arr = env
-        .new_object_array(state.shared_heads.len() as i32, CHANGEHASH_CLASS, JObject::null())
+        .new_object_array(
+            state.shared_heads.len() as i32,
+            CHANGEHASH_CLASS,
+            JObject::null(),
+        )
         .unwrap();
     for (i, head) in state.shared_heads.iter().enumerate() {
         let hash = changehash_to_jobject(&env, head).unwrap();

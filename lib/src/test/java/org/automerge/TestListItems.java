@@ -2,7 +2,6 @@ package org.automerge;
 
 import java.util.Collections;
 import java.util.Date;
-import java.util.function.Function;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,17 +21,8 @@ public class TestListItems {
 	}
 
 	@Test
-	public void testUnobserved() {
-		run(doc -> doc.startTransaction());
-	}
-
-	@Test
-	public void testObserved() {
-		run(doc -> doc.startTransactionForPatches());
-	}
-
-	<T> void run(Function<Document, Transaction<T>> createTx) {
-		Transaction<T> tx = createTx.apply(doc);
+	void testListItems() {
+		Transaction tx = doc.startTransaction();
 		// Insert a bunch of items
 		insertListItems(tx);
 
@@ -48,7 +38,7 @@ public class TestListItems {
 		ChangeHash[] heads = doc.getHeads();
 
 		// Now delete the items we inserted
-		tx = createTx.apply(doc);
+		tx = doc.startTransaction();
 		tx.splice(list, 1, 11, Collections.emptyIterator());
 
 		// Check the current length in the open transaction
@@ -86,7 +76,7 @@ public class TestListItems {
 		assertItems(items);
 	}
 
-	<T> void insertListItems(Transaction<T> tx) {
+	void insertListItems(Transaction tx) {
 		list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 
 		tx.insert(list, 0, 1);

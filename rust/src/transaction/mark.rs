@@ -1,3 +1,4 @@
+use am::transaction::Transactable;
 use automerge as am;
 use automerge_jni_macros::jni_fn;
 use jni::{
@@ -21,7 +22,7 @@ struct MarkOp {
 impl TransactionOp for MarkOp {
     type Output = ();
 
-    unsafe fn execute<T: super::Transaction>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
         let expand_obj = JObject::from_raw(self.expand);
         let expand = expand_mark::from_java(&env, expand_obj).unwrap();
         let name_str = JString::from_raw(self.name);
@@ -309,7 +310,7 @@ struct Unmark {
 impl TransactionOp for Unmark {
     type Output = ();
 
-    unsafe fn execute<T: super::Transaction>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
         let expand_obj = JObject::from_raw(self.expand);
         let expand = expand_mark::from_java(&env, expand_obj).unwrap();
         let name_str = JString::from_raw(self.name);

@@ -7,30 +7,8 @@ import java.util.Optional;
 /**
  * A mutable view of a {@link Document}
  *
- * @param <CommitResult>
- *            the type returned by {@link #commit()}. In practice either
- *            {@link ChangeHash} or {@link HashAndPatches}
- *            <p>
- *            Transaction extends {@link Read}, so to read and write to a
- *            document you just use the transaction.
- *            <p>
- *            Only one transaction can be live at a time, transactions are
- *            closed by calling either {@link #commit()} or {@link #rollback()},
- *            but Transaaction implements {@link AutoCloseable} so the safest
- *            way to use a transaction is inside a try-with-resources block.
- *            <p>
- *            Transactions are generic over the return type of {@link #commit}.
- *            This is because there are two kinds of transactions. One that
- *            returns a {@link ChangeHash}, created by
- *            {@link Document#startTransaction()}, and one that returns a
- *            {@link HashAndPatches}, created by
- *            {@link Document#startTransactionForPatches()}. The difference is
- *            the the latter accumulates a list of {@link Patch} objects that
- *            describe the changes made during the transaction and which are
- *            returned by {@link #commit}. The reason you might _not_ want to
- *            use patches is that they are more expensive to generate.
  */
-public interface Transaction<CommitResult> extends Read, AutoCloseable {
+public interface Transaction extends Read, AutoCloseable {
 	/**
 	 * Commit the transaction
 	 *
@@ -41,7 +19,7 @@ public interface Transaction<CommitResult> extends Read, AutoCloseable {
 	 * @return the result of the commit or {@link Optional#empty()} if the
 	 *         transaction made no changes
 	 */
-	public Optional<CommitResult> commit();
+	public Optional<ChangeHash> commit();
 
 	/**
 	 * Close the transaction and reverse any changes made
