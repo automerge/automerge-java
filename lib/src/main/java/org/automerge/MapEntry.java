@@ -1,6 +1,6 @@
 package org.automerge;
 
-class MapEntry {
+public class MapEntry {
 	private String key;
 	private AmValue value;
 
