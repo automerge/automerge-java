@@ -135,8 +135,7 @@ public final class TestTransaction {
 	@Test
 	public final void setCounterInMap() {
 		tx.set(ObjectId.ROOT, "counter", new Counter(10));
-		Assertions.assertEquals(new Counter(10),
-				((AmValue.Counter) doc.get(ObjectId.ROOT, "counter").get()).getValue());
+		Assertions.assertEquals(10, ((AmValue.Counter) doc.get(ObjectId.ROOT, "counter").get()).getValue());
 	}
 
 	@Test

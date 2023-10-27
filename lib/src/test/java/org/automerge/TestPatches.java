@@ -58,7 +58,7 @@ class TestPatches {
 		});
 
 		assertPutMap(patches.get(7), ObjectId.ROOT, emptyPath(), "counter", (AmValue value) -> {
-			Assertions.assertEquals(((AmValue.Counter) value).getValue().getValue(), 3);
+			Assertions.assertEquals(((AmValue.Counter) value).getValue(), 3);
 		});
 
 		assertPutMap(patches.get(8), ObjectId.ROOT, emptyPath(), "timestamp", (AmValue value) -> {
@@ -146,7 +146,7 @@ class TestPatches {
 		});
 
 		assertSetInList(patches.get(8), list, PathBuilder.root("list").build(), 7, (AmValue value) -> {
-			Assertions.assertEquals(((AmValue.Counter) value).getValue().getValue(), 3);
+			Assertions.assertEquals(((AmValue.Counter) value).getValue(), 3);
 		});
 
 		assertSetInList(patches.get(9), list, PathBuilder.root("list").build(), 8, (AmValue value) -> {
@@ -210,7 +210,7 @@ class TestPatches {
 		Assertions.assertArrayEquals(((AmValue.Bytes) values.get(4)).getValue(), "bytes".getBytes());
 		Assertions.assertEquals(((AmValue.Bool) values.get(5)).getValue(), true);
 		Assertions.assertInstanceOf(AmValue.Null.class, values.get(6));
-		Assertions.assertEquals(((AmValue.Counter) values.get(7)).getValue().getValue(), 3);
+		Assertions.assertEquals(((AmValue.Counter) values.get(7)).getValue(), 3);
 		Assertions.assertEquals(((AmValue.Timestamp) values.get(8)).getValue(), now);
 		Assertions.assertEquals(((AmValue.List) values.get(9)).getId(), innerList);
 		Assertions.assertEquals(((AmValue.Map) values.get(10)).getId(), map);

@@ -134,7 +134,7 @@ class TestGet {
 
 			@Override
 			public void check(AmValue value) {
-				Assertions.assertEquals(new Counter(1), ((AmValue.Counter) value).getValue());
+				Assertions.assertEquals(1, ((AmValue.Counter) value).getValue());
 			}
 		});
 		// Timestamp

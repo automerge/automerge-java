@@ -64,7 +64,7 @@ public final class TestInsert {
 	@Test
 	public void testInsertCounterInList() {
 		tx.insert(list, 0, new Counter(10));
-		Assertions.assertEquals(new Counter(10), ((AmValue.Counter) doc.get(list, 0).get()).getValue());
+		Assertions.assertEquals(10, ((AmValue.Counter) doc.get(list, 0).get()).getValue());
 	}
 
 	@Test
