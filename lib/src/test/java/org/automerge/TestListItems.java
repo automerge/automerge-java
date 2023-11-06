@@ -111,7 +111,7 @@ public class TestListItems {
 		Assertions.assertEquals(1.2, ((AmValue.F64) items[5]).getValue());
 		Assertions.assertEquals("somestring", ((AmValue.Str) items[6]).getValue());
 		Assertions.assertInstanceOf(AmValue.Null.class, items[7]);
-		Assertions.assertEquals(new Counter(10), ((AmValue.Counter) items[8]).getValue());
+		Assertions.assertEquals(10, ((AmValue.Counter) items[8]).getValue());
 		Assertions.assertEquals(map, ((AmValue.Map) items[9]).getId());
 		Assertions.assertEquals(subList, ((AmValue.List) items[10]).getId());
 		Assertions.assertEquals(text, ((AmValue.Text) items[11]).getId());

@@ -101,7 +101,7 @@ class TestMapEntries {
 		Assertions.assertArrayEquals("bytes".getBytes(), ((AmValue.Bytes) bytesEntry.getValue()).getValue());
 
 		MapEntry counterEntry = entrysByKey.get("counter");
-		Assertions.assertEquals(new Counter(10), ((AmValue.Counter) counterEntry.getValue()).getValue());
+		Assertions.assertEquals(10, ((AmValue.Counter) counterEntry.getValue()).getValue());
 
 		MapEntry dateEntry = entrysByKey.get("date");
 		Assertions.assertEquals(dateValue, ((AmValue.Timestamp) dateEntry.getValue()).getValue());

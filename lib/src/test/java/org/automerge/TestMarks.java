@@ -43,7 +43,7 @@ class TestMarks {
 
 		Mark counterMark = marks.get(2);
 		assertMark(counterMark, 1, 5, "counter",
-				value -> Assertions.assertEquals(((AmValue.Counter) value).getValue().getValue(), 5));
+				value -> Assertions.assertEquals(((AmValue.Counter) value).getValue(), 5));
 
 		Mark dateMark = marks.get(3);
 		assertMark(dateMark, 1, 5, "date",

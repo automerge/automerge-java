@@ -22,7 +22,7 @@ public final class TestIncrement {
 	public void testIncrementInMap() {
 		tx.set(ObjectId.ROOT, "key", new Counter(10));
 		tx.increment(ObjectId.ROOT, "key", 5);
-		Assertions.assertEquals(new Counter(15), ((AmValue.Counter) doc.get(ObjectId.ROOT, "key").get()).getValue());
+		Assertions.assertEquals(15, ((AmValue.Counter) doc.get(ObjectId.ROOT, "key").get()).getValue());
 	}
 
 	@Test
@@ -30,6 +30,6 @@ public final class TestIncrement {
 		ObjectId list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
 		tx.insert(list, 0, new Counter(10));
 		tx.increment(list, 0, 5);
-		Assertions.assertEquals(new Counter(15), ((AmValue.Counter) doc.get(list, 0).get()).getValue());
+		Assertions.assertEquals(15, ((AmValue.Counter) doc.get(list, 0).get()).getValue());
 	}
 }

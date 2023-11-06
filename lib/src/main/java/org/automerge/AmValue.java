@@ -104,13 +104,13 @@ public abstract class AmValue {
 	public static class Counter extends AmValue {
 		private org.automerge.Counter value;
 
-		public org.automerge.Counter getValue() {
-			return value;
+		public long getValue() {
+			return value.getValue();
 		}
 
 		@Override
 		public String toString() {
-			return "Counter [value=" + value + "]";
+			return "Counter [value=" + value.getValue() + "]";
 		}
 	}
 

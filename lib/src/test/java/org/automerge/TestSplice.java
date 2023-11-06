@@ -111,8 +111,8 @@ public final class TestSplice {
 	@Test
 	public void testSpliceCounter() {
 		testSplice2(NewValue.counter(1), NewValue.counter(2), (elem1, elem2) -> {
-			Assertions.assertEquals(new Counter(1), ((AmValue.Counter) elem1).getValue());
-			Assertions.assertEquals(new Counter(2), ((AmValue.Counter) elem2).getValue());
+			Assertions.assertEquals(1, ((AmValue.Counter) elem1).getValue());
+			Assertions.assertEquals(2, ((AmValue.Counter) elem2).getValue());
 		});
 	}
 }
