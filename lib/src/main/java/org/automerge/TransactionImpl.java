@@ -1,6 +1,7 @@
 package org.automerge;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -339,5 +340,15 @@ public class TransactionImpl implements Transaction {
 		if (this.pointer.isPresent()) {
 			this.rollback();
 		}
+	}
+
+	@Override
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index) {
+		return AutomergeSys.getMarksAtIndexInTx(this.pointer.get(), obj, index, Optional.empty());
+	}
+
+	@Override
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads) {
+		return AutomergeSys.getMarksAtIndexInTx(this.pointer.get(), obj, index, Optional.of(heads));
 	}
 }

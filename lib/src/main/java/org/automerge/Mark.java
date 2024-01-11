@@ -1,6 +1,6 @@
 package org.automerge;
 
-class Mark {
+public class Mark {
 	private final long start;
 	private final long end;
 	private final String name;

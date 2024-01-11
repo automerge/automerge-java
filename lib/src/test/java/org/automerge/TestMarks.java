@@ -1,6 +1,7 @@
 package org.automerge;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Assertions;
@@ -140,6 +141,55 @@ class TestMarks {
 		Assertions.assertEquals(1, marks.size());
 		Mark mark = marks.get(0);
 		assertMark(mark, 2, 5, "comment", value -> Assertions.assertEquals("1234", ((AmValue.Str) value).getValue()));
+	}
+
+	@Test
+	void testMarksAtIndex() {
+		Document doc = new Document();
+		ObjectId text;
+		try (Transaction tx = doc.startTransaction()) {
+			text = tx.set(ObjectId.ROOT, "text", ObjectType.TEXT);
+			tx.spliceText(text, 0, 0, "Hello");
+			tx.mark(text, 0, 5, "bold", true, ExpandMark.NONE);
+			HashMap<String, AmValue> marks = tx.getMarksAtIndex(text, 1);
+			Assertions.assertEquals(1, marks.size());
+			Assertions.assertEquals(true, ((AmValue.Bool) marks.get("bold")).getValue());
+			tx.commit();
+		}
+
+		HashMap<String, AmValue> marks = doc.getMarksAtIndex(text, 1);
+		Assertions.assertEquals(1, marks.size());
+		Assertions.assertEquals(true, ((AmValue.Bool) marks.get("bold")).getValue());
+	}
+
+	@Test
+	void testMarksAtIndexAtHeads() {
+		Document doc = new Document();
+		ObjectId text;
+		try (Transaction tx = doc.startTransaction()) {
+			text = tx.set(ObjectId.ROOT, "text", ObjectType.TEXT);
+			tx.spliceText(text, 0, 0, "Hello");
+			tx.mark(text, 0, 5, "bold", true, ExpandMark.NONE);
+			HashMap<String, AmValue> marks = tx.getMarksAtIndex(text, 1);
+			Assertions.assertEquals(1, marks.size());
+			Assertions.assertEquals(true, ((AmValue.Bool) marks.get("bold")).getValue());
+			tx.commit();
+		}
+
+		// Save the heads
+		ChangeHash[] heads = doc.getHeads();
+
+		try (Transaction tx = doc.startTransaction()) {
+			tx.markNull(text, 0, 5, "bold", ExpandMark.NONE);
+			HashMap<String, AmValue> marks = tx.getMarksAtIndex(text, 1, heads);
+			Assertions.assertEquals(1, marks.size());
+			Assertions.assertEquals(true, ((AmValue.Bool) marks.get("bold")).getValue());
+			tx.commit();
+		}
+
+		HashMap<String, AmValue> marks = doc.getMarksAtIndex(text, 1, heads);
+		Assertions.assertEquals(1, marks.size());
+		Assertions.assertEquals(true, ((AmValue.Bool) marks.get("bold")).getValue());
 	}
 
 	void assertMark(Mark mark, long start, long end, String name, MarkValueAssertion assertion) {

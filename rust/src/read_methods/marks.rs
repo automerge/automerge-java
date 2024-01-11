@@ -25,3 +25,29 @@ pub unsafe extern "C" fn getMarksInTx(
 ) -> jni::sys::jobject {
     SomeReadPointer::tx(tx_pointer).marks(env, obj_pointer, heads_pointer)
 }
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn getMarksAtIndexInDoc(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    doc_pointer: jni::sys::jobject,
+    obj_pointer: jni::sys::jobject,
+    index: jni::sys::jint,
+    heads_pointer: jni::sys::jobject,
+) -> jni::sys::jobject {
+    SomeReadPointer::doc(doc_pointer).marks_at_index(env, obj_pointer, index, heads_pointer)
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn getMarksAtIndexInTx(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    tx_pointer: jni::sys::jobject,
+    obj_pointer: jni::sys::jobject,
+    index: jni::sys::jint,
+    heads_pointer: jni::sys::jobject,
+) -> jni::sys::jobject {
+    SomeReadPointer::tx(tx_pointer).marks_at_index(env, obj_pointer, index, heads_pointer)
+}

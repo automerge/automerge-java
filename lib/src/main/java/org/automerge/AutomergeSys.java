@@ -2,6 +2,7 @@ package org.automerge;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -242,6 +243,12 @@ class AutomergeSys {
 	public static native List<Mark> getMarksInDoc(DocPointer doc, ObjectId obj, Optional<ChangeHash[]> heads);
 
 	public static native List<Mark> getMarksInTx(TransactionPointer tx, ObjectId obj, Optional<ChangeHash[]> heads);
+
+	public static native HashMap<String, AmValue> getMarksAtIndexInDoc(DocPointer doc, ObjectId obj, long index,
+			Optional<ChangeHash[]> heads);
+
+	public static native HashMap<String, AmValue> getMarksAtIndexInTx(TransactionPointer tx, ObjectId obj, long index,
+			Optional<ChangeHash[]> heads);
 
 	public static native void markUint(TransactionPointer tx, ObjectId obj, String name, long start, long end,
 			long value, ExpandMark expand);

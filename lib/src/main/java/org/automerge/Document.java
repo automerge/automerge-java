@@ -1,5 +1,6 @@
 package org.automerge;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import org.automerge.AutomergeSys.DocPointer;
@@ -658,5 +659,23 @@ public class Document implements Read {
 	 */
 	public List<Patch> diff(ChangeHash[] before, ChangeHash[] after) {
 		return AutomergeSys.diff(this.pointer.get(), before, after);
+	}
+
+	@Override
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.empty());
+		} else {
+			return AutomergeSys.getMarksAtIndexInDoc(this.pointer.get(), obj, index, Optional.empty());
+		}
+	}
+
+	@Override
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.of(heads));
+		} else {
+			return AutomergeSys.getMarksAtIndexInDoc(this.pointer.get(), obj, index, Optional.of(heads));
+		}
 	}
 }

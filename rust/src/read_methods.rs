@@ -3,9 +3,9 @@ use std::ops::RangeBounds;
 use am::iter::{ListRangeItem, MapRangeItem};
 use am::ReadDoc;
 use jni::objects::JObject;
-use jni::sys::{jlong, jobject};
+use jni::sys::{jlong, jobject, jint};
 
-use crate::am_value::{to_amvalue, to_optional_amvalue};
+use crate::am_value::{to_amvalue, to_optional_amvalue, scalar_to_amvalue};
 use crate::conflicts::make_optional_conflicts;
 use crate::interop::{changehash_to_jobject, heads_from_jobject, CHANGEHASH_CLASS};
 use crate::java_option::{make_empty_option, make_optional};
@@ -327,20 +327,7 @@ impl SomeReadPointer {
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
         let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
-        let heads_option = JObject::from_raw(heads_option);
-        let heads_present = env
-            .call_method(heads_option, "isPresent", "()Z", &[])
-            .unwrap();
-        let heads = if heads_present.z().unwrap() {
-            let heads = env
-                .call_method(heads_option, "get", "()Ljava/lang/Object;", &[])
-                .unwrap()
-                .l()
-                .unwrap();
-            Some(heads_from_jobject(&env, heads.into_raw()).unwrap())
-        } else {
-            None
-        };
+        let heads = maybe_heads(env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
             read.marks_at(obj, &h)
         } else {
@@ -360,6 +347,59 @@ impl SomeReadPointer {
                 .unwrap();
         }
         marks_arr.into_raw()
+    }
+
+    unsafe fn marks_at_index(
+        self,
+        env: jni::JNIEnv,
+        obj_pointer: jobject,
+        index: jint,
+        heads_option: jobject,
+    ) -> jobject {
+        let read = SomeRead::from_pointer(env, self);
+        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let heads = maybe_heads(env, heads_option).unwrap();
+        let marks = if let Some(h) = heads {
+            read.get_marks(obj, index as usize, Some(&h))
+        } else {
+            read.get_marks(obj, index as usize, None)
+        };
+        let marks = match marks {
+            Ok(m) => m,
+            Err(e) => {
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                return JObject::null().into_raw();
+            }
+        };
+        let marks_map = env.new_object("java/util/HashMap", "()V", &[]).unwrap();
+        for (mark_name, mark_value) in marks.iter() {
+            let value = scalar_to_amvalue(&env, mark_value).unwrap();
+            let mark_name = env.new_string(mark_name).unwrap();
+            env.call_method(
+                marks_map,
+                "put",
+                "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
+                &[mark_name.into(), value.into()],
+            )
+            .unwrap();
+        }
+        marks_map.into_raw()
+    }
+}
+
+unsafe fn maybe_heads(
+    env: jni::JNIEnv<'_>,
+    maybe_heads: jobject,
+) -> Result<Option<Vec<automerge::ChangeHash>>, jni::errors::Error> {
+    let heads_option = JObject::from_raw(maybe_heads);
+    let heads_present = env.call_method(heads_option, "isPresent", "()Z", &[])?;
+    if heads_present.z().unwrap() {
+        let heads = env
+            .call_method(heads_option, "get", "()Ljava/lang/Object;", &[])?
+            .l()?;
+        Ok(Some(heads_from_jobject(&env, heads.into_raw())?))
+    } else {
+        Ok(None)
     }
 }
 

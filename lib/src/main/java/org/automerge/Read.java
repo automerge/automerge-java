@@ -1,5 +1,6 @@
 package org.automerge;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -300,6 +301,32 @@ public interface Read {
 	 *         object
 	 */
 	public List<Mark> marks(ObjectId obj, ChangeHash[] heads);
+
+	/**
+	 * Get the marks defined at the given index in a text object
+	 *
+	 * @param obj
+	 *            - The ID of the text object to get the marks from
+	 * @param index
+	 *            - The index to get the marks at
+	 * @return The marks at the given index or None if the object is not a text
+	 *         object
+	 */
+	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index);
+
+	/**
+	 * Get the marks defined at the given index in a text object
+	 *
+	 * @param obj
+	 *            - The ID of the text object to get the marks from
+	 * @param index
+	 *            - The index to get the marks at
+	 * @param heads
+	 *            - The heads of the version of the document to get the marks from
+	 * @return The marks at the given index or None if the object is not a text
+	 *         object
+	 */
+	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads);
 
 	/**
 	 * Get the heads of the object
