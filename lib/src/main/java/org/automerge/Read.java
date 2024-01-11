@@ -338,4 +338,74 @@ public interface Read {
 	 *         this moment.
 	 */
 	public ChangeHash[] getHeads();
+
+	/**
+	 * Get a cursor which refers to the given index in a list or text object
+	 *
+	 * @param obj
+	 *            - The ID of the list or text object to get the cursor for
+	 * @param index
+	 *            - The index to get the cursor for
+	 *
+	 * @return The cursor
+	 *
+	 * @throws AutomergeException
+	 *             if the object ID refers to an object which is not a list or text
+	 *             object or if the index is out of range
+	 */
+	public Cursor makeCursor(ObjectId obj, long index);
+
+	/**
+	 * Get a cursor which refers to the given index in a list or text object as at
+	 * the given heads
+	 *
+	 * @param obj
+	 *            - The ID of the list or text object to get the cursor for
+	 * @param index
+	 *            - The index to get the cursor for
+	 * @param heads
+	 *            - The heads of the version of the document to make the cursor from
+	 *
+	 * @return The cursor
+	 *
+	 * @throws AutomergeException
+	 *             if the object ID refers to an object which is not a list or text
+	 *             object or if the index is out of range
+	 */
+	public Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads);
+
+	/**
+	 * Given a cursor for an object, get the index the cursor points at
+	 *
+	 * @param obj
+	 *            - The ID of the object the cursor refers into
+	 * @param cursor
+	 *            - The cursor
+	 *
+	 * @return The index the cursor points at
+	 * @throws AutomergeException
+	 *             if the object ID refers to an object which is not a list or text
+	 *             object or if the cursor does not refer to an element in the
+	 *             object
+	 */
+	public long lookupCursorIndex(ObjectId obj, Cursor cursor);
+
+	/**
+	 * Given a cursor for an object, get the index the cursor points at as at the
+	 * given heads
+	 *
+	 * @param obj
+	 *            - The ID of the object the cursor refers into
+	 * @param cursor
+	 *            - The cursor
+	 * @param heads
+	 *            - The heads of the version of the document to make the cursor from
+	 *
+	 * @return The index the cursor points at
+	 * @throws AutomergeException
+	 *             if the object ID refers to an object which is not a list or text
+	 *             object or if the cursor does not refer to an element in the
+	 *             object
+	 */
+	public long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads);
 }

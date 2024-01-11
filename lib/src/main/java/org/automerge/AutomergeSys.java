@@ -324,4 +324,15 @@ class AutomergeSys {
 	public static native void freePatchLog(PatchLogPointer pointer);
 
 	public static native ArrayList<Patch> diff(DocPointer doc, ChangeHash[] before, ChangeHash[] after);
+
+	public static native Cursor makeCursorInDoc(DocPointer doc, ObjectId obj, long index, Optional<ChangeHash[]> heads);
+
+	public static native Cursor makeCursorInTx(TransactionPointer tx, ObjectId obj, long index,
+			Optional<ChangeHash[]> heads);
+
+	public static native long lookupCursorIndexInDoc(DocPointer doc, ObjectId obj, Cursor cursor,
+			Optional<ChangeHash[]> heads);
+
+	public static native long lookupCursorIndexInTx(TransactionPointer tx, ObjectId obj, Cursor cursor,
+			Optional<ChangeHash[]> heads);
 }

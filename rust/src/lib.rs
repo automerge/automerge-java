@@ -8,6 +8,7 @@ macro_rules! am_classname {
 }
 
 mod conflicts;
+mod cursor;
 mod document;
 mod expand_mark;
 mod interop;

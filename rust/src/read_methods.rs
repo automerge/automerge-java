@@ -3,10 +3,11 @@ use std::ops::RangeBounds;
 use am::iter::{ListRangeItem, MapRangeItem};
 use am::ReadDoc;
 use jni::objects::JObject;
-use jni::sys::{jlong, jobject, jint};
+use jni::sys::{jint, jlong, jobject};
 
-use crate::am_value::{to_amvalue, to_optional_amvalue, scalar_to_amvalue};
+use crate::am_value::{scalar_to_amvalue, to_amvalue, to_optional_amvalue};
 use crate::conflicts::make_optional_conflicts;
+use crate::cursor::Cursor;
 use crate::interop::{changehash_to_jobject, heads_from_jobject, CHANGEHASH_CLASS};
 use crate::java_option::{make_empty_option, make_optional};
 use crate::mark::mark_to_java;
@@ -17,6 +18,7 @@ use crate::{interop::AsPointerObj, read_ops::ReadOps};
 use automerge as am;
 use automerge::transaction::Transaction as AmTransaction;
 
+mod cursor;
 mod get;
 mod get_all;
 mod get_at;
@@ -384,6 +386,55 @@ impl SomeReadPointer {
             .unwrap();
         }
         marks_map.into_raw()
+    }
+
+    unsafe fn make_cursor(
+        self,
+        env: jni::JNIEnv<'_>,
+        obj_pointer: jobject,
+        index: jlong,
+        maybe_heads_pointer: jobject,
+    ) -> jobject {
+        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
+        let read = SomeRead::from_pointer(env, self);
+        if index < 0 {
+            env.throw_new(AUTOMERGE_EXCEPTION, "Index must be >= 0")
+                .unwrap();
+            return JObject::null().into_raw();
+        }
+        let cursor = read.get_cursor(obj, index as usize, heads.as_deref());
+        let cursor = match cursor {
+            Ok(c) => c,
+            Err(e) => {
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                return JObject::null().into_raw();
+            }
+        };
+        Cursor::from(cursor).into_raw(&env).unwrap()
+    }
+
+    unsafe fn lookup_cursor_index(
+        self,
+        env: jni::JNIEnv<'_>,
+        obj_pointer: jobject,
+        cursor_pointer: jobject,
+        maybe_heads_pointer: jobject,
+    ) -> jlong {
+        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
+        let read = SomeRead::from_pointer(env, self);
+
+        let cursor = Cursor::from_raw(&env, cursor_pointer).unwrap();
+        let index = read.get_cursor_position(obj, cursor.as_ref(), heads.as_deref());
+        let index = match index {
+            Ok(i) => i,
+            Err(e) => {
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                return 0;
+            }
+        };
+        index as i64
     }
 }
 

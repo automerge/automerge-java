@@ -351,4 +351,25 @@ public class TransactionImpl implements Transaction {
 	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads) {
 		return AutomergeSys.getMarksAtIndexInTx(this.pointer.get(), obj, index, Optional.of(heads));
 	}
+
+	@Override
+	public Cursor makeCursor(ObjectId obj, long index) {
+		return AutomergeSys.makeCursorInTx(this.pointer.get(), obj, index, Optional.empty());
+	}
+
+	@Override
+	public Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
+		return AutomergeSys.makeCursorInTx(this.pointer.get(), obj, index, Optional.of(heads));
+	}
+
+	@Override
+	public long lookupCursorIndex(ObjectId obj, Cursor cursor) {
+		return AutomergeSys.lookupCursorIndexInTx(this.pointer.get(), obj, cursor, Optional.empty());
+	}
+
+	@Override
+	public long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
+		return AutomergeSys.lookupCursorIndexInTx(this.pointer.get(), obj, cursor, Optional.of(heads));
+	}
+
 }
