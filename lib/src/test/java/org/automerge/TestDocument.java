@@ -63,4 +63,15 @@ public final class TestDocument {
 		Document doc = new Document();
 		doc.free();
 	}
+
+	@Test
+	public void testNullObjectIdThrows() {
+		// this test is actually a test for any path which uses an `ObjectId`
+		// as the code which throws the exception is in the rust implementation
+		// which converts the `ObjectId` into an internal rust type
+		Document doc = new Document();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			doc.get(null, "key");
+		});
+	}
 }

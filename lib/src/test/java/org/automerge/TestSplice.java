@@ -15,7 +15,6 @@ public final class TestSplice {
 	interface InsertedAssertions {
 		void assertInserted(Object elem1, Object elem2);
 	}
-
 	public TestSplice() {
 		super();
 	}
