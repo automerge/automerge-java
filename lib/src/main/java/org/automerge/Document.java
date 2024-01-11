@@ -714,4 +714,13 @@ public class Document implements Read {
 			return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.of(heads));
 		}
 	}
+
+	@Override
+	public synchronized Optional<ObjectType> getObjectType(ObjectId obj) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.getObjectTypeInTx(this.transactionPtr.get(), obj);
+		} else {
+			return AutomergeSys.getObjectTypeInDoc(this.pointer.get(), obj);
+		}
+	}
 }

@@ -335,4 +335,8 @@ class AutomergeSys {
 
 	public static native long lookupCursorIndexInTx(TransactionPointer tx, ObjectId obj, Cursor cursor,
 			Optional<ChangeHash[]> heads);
+
+	public static native Optional<ObjectType> getObjectTypeInDoc(DocPointer doc, ObjectId obj);
+
+	public static native Optional<ObjectType> getObjectTypeInTx(TransactionPointer tx, ObjectId obj);
 }
