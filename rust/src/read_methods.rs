@@ -628,6 +628,18 @@ impl<'a> ReadDoc for SomeRead<'a> {
             SomeRead::Doc(doc) => doc.get_cursor_position(obj, cursor, at),
         }
     }
+
+    fn get_marks<O: AsRef<am::ObjId>>(
+        &self,
+        obj: O,
+        index: usize,
+        heads: Option<&[am::ChangeHash]>,
+    ) -> Result<am::marks::MarkSet, am::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.get_marks(obj, index, heads),
+            SomeRead::Doc(doc) => doc.get_marks(obj, index, heads),
+        }
+    }
 }
 
 impl<'a> ReadOps for SomeRead<'a> {
