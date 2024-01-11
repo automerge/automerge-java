@@ -75,8 +75,7 @@ public class Document implements Read {
 	// If a transaction is in progress we must forward all calls to the transaction.
 	// In rust code the transaction holds a mutable reference to the document, so
 	// any
-	// calls to the document whilst the transaction exists would be undefined
-	// behaviour.
+	// calls to the document whilst the transaction exists would be unsafe
 	private Optional<AutomergeSys.TransactionPointer> transactionPtr;
 
 	/** Create a new document with a random actor ID */
@@ -336,7 +335,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<AmValue> get(ObjectId obj, String key, ChangeHash[] heads) {
+	public synchronized Optional<AmValue> get(ObjectId obj, String key, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAtInMapInTx(this.transactionPtr.get(), obj, key, heads);
 		} else {
@@ -344,7 +343,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<AmValue> get(ObjectId obj, int idx, ChangeHash[] heads) {
+	public synchronized Optional<AmValue> get(ObjectId obj, int idx, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
 		} else {
@@ -352,7 +351,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<Conflicts> getAll(ObjectId obj, String key) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, String key) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllInMapInTx(this.transactionPtr.get(), obj, key);
 		} else {
@@ -360,7 +359,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<Conflicts> getAll(ObjectId obj, int idx) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllInListInTx(this.transactionPtr.get(), obj, idx);
 		} else {
@@ -368,7 +367,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<Conflicts> getAll(ObjectId obj, String key, ChangeHash[] heads) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, String key, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllAtInMapInTx(this.transactionPtr.get(), obj, key, heads);
 		} else {
@@ -376,7 +375,7 @@ public class Document implements Read {
 		}
 	}
 
-	public Optional<Conflicts> getAll(ObjectId obj, int idx, ChangeHash[] heads) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
 		} else {
@@ -657,7 +656,7 @@ public class Document implements Read {
 	 * @return The patches required to transform the state at `before` to the state
 	 *         at `after`
 	 */
-	public List<Patch> diff(ChangeHash[] before, ChangeHash[] after) {
+	public synchronized List<Patch> diff(ChangeHash[] before, ChangeHash[] after) {
 		return AutomergeSys.diff(this.pointer.get(), before, after);
 	}
 
@@ -680,22 +679,39 @@ public class Document implements Read {
 	}
 
 	@Override
-	public Cursor makeCursor(ObjectId obj, long index) {
-		return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.empty());
+	public synchronized Cursor makeCursor(ObjectId obj, long index) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.makeCursorInTx(this.transactionPtr.get(), obj, index, Optional.empty());
+		} else {
+			return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.empty());
+		}
 	}
 
 	@Override
-	public Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
-		return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.of(heads));
+	public synchronized Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.makeCursorInTx(this.transactionPtr.get(), obj, index, Optional.of(heads));
+		} else {
+			return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.of(heads));
+		}
 	}
 
 	@Override
-	public long lookupCursorIndex(ObjectId obj, Cursor cursor) {
-		return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.empty());
+	public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.lookupCursorIndexInTx(this.transactionPtr.get(), obj, cursor, Optional.empty());
+		} else {
+			return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.empty());
+		}
+
 	}
 
 	@Override
-	public long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
-		return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.of(heads));
+	public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
+		if (this.transactionPtr.isPresent()) {
+			return AutomergeSys.lookupCursorIndexInTx(this.transactionPtr.get(), obj, cursor, Optional.of(heads));
+		} else {
+			return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.of(heads));
+		}
 	}
 }

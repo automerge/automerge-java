@@ -280,47 +280,53 @@ public class TransactionImpl implements Transaction {
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, String value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, String value,
+			ExpandMark expand) {
 		AutomergeSys.markString(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, long value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, long value, ExpandMark expand) {
 		AutomergeSys.markInt(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void markUint(ObjectId obj, long start, long end, String markName, long value, ExpandMark expand) {
+	public synchronized void markUint(ObjectId obj, long start, long end, String markName, long value,
+			ExpandMark expand) {
 		AutomergeSys.markUint(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, double value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, double value,
+			ExpandMark expand) {
 		AutomergeSys.markDouble(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, byte[] value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, byte[] value,
+			ExpandMark expand) {
 		AutomergeSys.markBytes(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, Counter value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, Counter value,
+			ExpandMark expand) {
 		AutomergeSys.markCounter(this.pointer.get(), obj, markName, start, end, value.getValue(), expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, Date value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, Date value, ExpandMark expand) {
 		AutomergeSys.markDate(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void mark(ObjectId obj, long start, long end, String markName, boolean value, ExpandMark expand) {
+	public synchronized void mark(ObjectId obj, long start, long end, String markName, boolean value,
+			ExpandMark expand) {
 		AutomergeSys.markBool(this.pointer.get(), obj, markName, start, end, value, expand);
 	}
 
 	@Override
-	public void markNull(ObjectId obj, long start, long end, String markName, ExpandMark expand) {
+	public synchronized void markNull(ObjectId obj, long start, long end, String markName, ExpandMark expand) {
 		AutomergeSys.markNull(this.pointer.get(), obj, markName, start, end, expand);
 	}
 
@@ -336,7 +342,7 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.getMarksInTx(this.pointer.get(), obj, Optional.of(heads));
 	}
 
-	public void close() {
+	public synchronized void close() {
 		if (this.pointer.isPresent()) {
 			this.rollback();
 		}
@@ -353,22 +359,22 @@ public class TransactionImpl implements Transaction {
 	}
 
 	@Override
-	public Cursor makeCursor(ObjectId obj, long index) {
+	public synchronized Cursor makeCursor(ObjectId obj, long index) {
 		return AutomergeSys.makeCursorInTx(this.pointer.get(), obj, index, Optional.empty());
 	}
 
 	@Override
-	public Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
+	public synchronized Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
 		return AutomergeSys.makeCursorInTx(this.pointer.get(), obj, index, Optional.of(heads));
 	}
 
 	@Override
-	public long lookupCursorIndex(ObjectId obj, Cursor cursor) {
+	public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor) {
 		return AutomergeSys.lookupCursorIndexInTx(this.pointer.get(), obj, cursor, Optional.empty());
 	}
 
 	@Override
-	public long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
+	public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
 		return AutomergeSys.lookupCursorIndexInTx(this.pointer.get(), obj, cursor, Optional.of(heads));
 	}
 
