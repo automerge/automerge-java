@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.automerge.AutomergeSys.PatchLogPointer;
 
-class PatchLog {
+public class PatchLog {
 	private Optional<PatchLogPointer> pointer;
 
 	public PatchLog() {
