@@ -378,4 +378,9 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.lookupCursorIndexInTx(this.pointer.get(), obj, cursor, Optional.of(heads));
 	}
 
+	@Override
+	public synchronized Optional<ObjectType> getObjectType(ObjectId obj) {
+		return AutomergeSys.getObjectTypeInTx(this.pointer.get(), obj);
+	}
+
 }

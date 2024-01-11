@@ -12,6 +12,7 @@ use crate::interop::{changehash_to_jobject, heads_from_jobject, CHANGEHASH_CLASS
 use crate::java_option::{make_empty_option, make_optional};
 use crate::mark::mark_to_java;
 use crate::obj_id::JavaObjId;
+use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
 use crate::AUTOMERGE_EXCEPTION;
 use crate::{interop::AsPointerObj, read_ops::ReadOps};
@@ -22,6 +23,7 @@ mod cursor;
 mod get;
 mod get_all;
 mod get_at;
+mod get_object_type;
 mod heads;
 mod keys;
 mod length;
@@ -29,7 +31,6 @@ mod list_items;
 mod map_entries;
 mod marks;
 mod text;
-
 macro_rules! catch {
     ($env:ident, $e:expr) => {
         match $e {
@@ -435,6 +436,23 @@ impl SomeReadPointer {
             }
         };
         index as i64
+    }
+
+    unsafe fn get_object_type(self, env: jni::JNIEnv<'_>, obj_pointer: jobject) -> jobject {
+        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let read = SomeRead::from_pointer(env, self);
+        let obj_type = match read.object_type(obj) {
+            Ok(o) => o,
+            Err(automerge::AutomergeError::InvalidObjId(_)) => {
+                return make_empty_option(&env).unwrap().into_raw();
+            }
+            Err(e) => {
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                return JObject::null().into_raw();
+            }
+        };
+        let val = JavaObjType::from(obj_type).to_java_enum(env).unwrap();
+        return make_optional(&env, val.into()).unwrap().into_raw();
     }
 }
 

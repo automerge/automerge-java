@@ -408,4 +408,15 @@ public interface Read {
 	 *             object
 	 */
 	public long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads);
+
+	/**
+	 * Get the object type of the object given by obj
+	 *
+	 * @param obj
+	 *            - The ID of the object to get the type of
+	 *
+	 * @return The type of the object or Optional.empty if the object does not exist
+	 *         in this document
+	 */
+	public Optional<ObjectType> getObjectType(ObjectId obj);
 }

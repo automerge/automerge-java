@@ -58,8 +58,7 @@ impl Cursor {
             .map_err(errors::FromRaw::GetByteArray)?;
         let bytes =
             std::slice::from_raw_parts(arr.as_ptr() as *const u8, arr.size().unwrap() as usize);
-        let cursor: automerge::Cursor =
-            bytes.try_into().map_err(errors::FromRaw::Invalid)?;
+        let cursor: automerge::Cursor = bytes.try_into().map_err(errors::FromRaw::Invalid)?;
         Ok(Self(cursor))
     }
 }
