@@ -7,6 +7,7 @@ use jni::{
     sys::{jbyteArray, jint, jlong, jobject},
 };
 
+use crate::obj_id::obj_id_or_throw;
 use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
 use crate::{obj_id::JavaObjId, AUTOMERGE_EXCEPTION};
@@ -30,7 +31,7 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
                 return;
             }
         };
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj, ());
 
         match tx.put(obj, key, self.value) {
             Ok(_) => {}
@@ -443,7 +444,7 @@ impl TransactionOp for SetObjOp {
     type Output = jobject;
 
     unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj);
         let oid = match tx.put_object(obj, self.key, self.value) {
             Ok(oid) => oid,
             Err(e) => {

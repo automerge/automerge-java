@@ -6,7 +6,11 @@ use jni::{
     sys::{jboolean, jdouble, jlong, jobject, jstring},
 };
 
-use crate::{expand_mark, obj_id::JavaObjId, AUTOMERGE_EXCEPTION};
+use crate::{
+    expand_mark,
+    obj_id::{obj_id_or_throw, JavaObjId},
+    AUTOMERGE_EXCEPTION,
+};
 
 use super::{do_tx_op, TransactionOp};
 
@@ -28,7 +32,7 @@ impl TransactionOp for MarkOp {
         let name_str = JString::from_raw(self.name);
         let name: String = env.get_string(name_str).unwrap().into();
         let mark = am::marks::Mark::new(name, self.value, self.start, self.end);
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj, ());
         match tx.mark(obj, mark, expand) {
             Ok(_) => {}
             Err(e) => {
@@ -315,7 +319,7 @@ impl TransactionOp for Unmark {
         let expand = expand_mark::from_java(&env, expand_obj).unwrap();
         let name_str = JString::from_raw(self.name);
         let name: String = env.get_string(name_str).unwrap().into();
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj, ());
         match tx.unmark(obj, &name, self.start, self.end, expand) {
             Ok(_) => {}
             Err(e) => {

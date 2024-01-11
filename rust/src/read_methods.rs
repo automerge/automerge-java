@@ -11,7 +11,7 @@ use crate::cursor::Cursor;
 use crate::interop::{changehash_to_jobject, heads_from_jobject, CHANGEHASH_CLASS};
 use crate::java_option::{make_empty_option, make_optional};
 use crate::mark::mark_to_java;
-use crate::obj_id::JavaObjId;
+use crate::obj_id::{obj_id_or_throw, JavaObjId};
 use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
 use crate::AUTOMERGE_EXCEPTION;
@@ -64,7 +64,7 @@ impl SomeReadPointer {
         key: P,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
 
         let key = catch!(env, key.into().try_into_prop(env));
         let result = catch!(env, read.get(obj, key));
@@ -80,7 +80,7 @@ impl SomeReadPointer {
         heads_pointer: jobject,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = heads_from_jobject(&env, heads_pointer).unwrap();
 
         let key = catch!(env, key.into().try_into_prop(env));
@@ -97,7 +97,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
 
         let key = catch!(env, key.into().try_into_prop(env));
         let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
@@ -156,7 +156,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
         let keys = match read.object_type(&obj) {
             Ok(automerge::ObjType::Map) => match heads {
@@ -188,7 +188,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jlong {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer, 0);
         match heads {
             Some(h) => {
                 let heads = heads_from_jobject(&env, h).unwrap();
@@ -205,7 +205,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
         let items = match read.object_type(&obj) {
             Ok(am::ObjType::List) => match heads {
@@ -245,7 +245,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
 
         let entries = match read.object_type(&obj) {
@@ -301,7 +301,7 @@ impl SomeReadPointer {
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
         let text = match read.object_type(&obj) {
             Ok(am::ObjType::Text) => match heads {
@@ -329,7 +329,7 @@ impl SomeReadPointer {
         heads_option: jobject,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = maybe_heads(env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
             read.marks_at(obj, &h)
@@ -360,7 +360,7 @@ impl SomeReadPointer {
         heads_option: jobject,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = maybe_heads(env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
             read.get_marks(obj, index as usize, Some(&h))
@@ -396,7 +396,7 @@ impl SomeReadPointer {
         index: jlong,
         maybe_heads_pointer: jobject,
     ) -> jobject {
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
         let read = SomeRead::from_pointer(env, self);
         if index < 0 {
@@ -422,7 +422,7 @@ impl SomeReadPointer {
         cursor_pointer: jobject,
         maybe_heads_pointer: jobject,
     ) -> jlong {
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer, 0);
         let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
         let read = SomeRead::from_pointer(env, self);
 
@@ -439,7 +439,7 @@ impl SomeReadPointer {
     }
 
     unsafe fn get_object_type(self, env: jni::JNIEnv<'_>, obj_pointer: jobject) -> jobject {
-        let obj = JavaObjId::from_raw(&env, obj_pointer).unwrap();
+        let obj = obj_id_or_throw!(&env, obj_pointer);
         let read = SomeRead::from_pointer(env, self);
         let obj_type = match read.object_type(obj) {
             Ok(o) => o,

@@ -48,8 +48,17 @@ impl JavaObjId {
         Ok(raw_obj)
     }
 
-    pub(crate) unsafe fn from_raw(env: &JNIEnv<'_>, raw: jobject) -> Result<Self, errors::FromRaw> {
+    pub(crate) unsafe fn from_raw(
+        env: &JNIEnv<'_>,
+        raw: jobject,
+    ) -> Result<Option<Self>, errors::FromRaw> {
         let obj = JObject::from_raw(raw);
+        let id_is_null = env
+            .is_same_object(obj, JObject::null())
+            .map_err(errors::FromRaw::GetRaw)?;
+        if id_is_null {
+            return Ok(None);
+        }
         let bytes_jobject = env
             .get_field(obj, "raw", "[B")
             .map_err(errors::FromRaw::GetRaw)?
@@ -62,9 +71,56 @@ impl JavaObjId {
         let bytes =
             std::slice::from_raw_parts(arr.as_ptr() as *const u8, arr.size().unwrap() as usize);
         let obj: automerge::ObjId = bytes.try_into()?;
-        Ok(Self(obj))
+        //Ok(Some(Self(obj)))
+        Ok(Some(Self(obj)))
     }
 }
+
+/// Get the `ObjId` from a `jobject` or throw an exception and return the given value.
+///
+/// This macro performs an early return if the `jobject` is null, which means the macro has two
+/// forms. The first form, which looks like this:
+///
+/// ```rust,ignore
+/// let obj = obj_id_or_throw!(env, some_obj_id);
+/// ```
+///
+/// Takes a [`jni::JNIEnv`] and a `jobject` and returns a [`JavaObjId`] or throws an exception and
+/// early returns a `jobject` from the surrounding function.
+///
+/// The second form, which looks like this:
+///
+/// ```rust,ignore
+/// let obj = obj_id_or_throw!(env, some_obj_id, false); // the `false` here can be anything
+/// ```
+///
+/// Takes a [`jni::JNIEnv`], a `jobject`, and a value to return from the surrounding function if
+/// the `jobject` is null.
+macro_rules! obj_id_or_throw {
+    ($env:expr, $obj_id:expr) => {
+        obj_id_or_throw!($env, $obj_id, JObject::null().into_raw())
+    };
+    ($env:expr, $obj_id:expr,$returning:expr) => {
+        match JavaObjId::from_raw($env, $obj_id) {
+            Ok(Some(id)) => id,
+            Ok(None) => {
+                $env.throw_new(
+                    "java/lang/IllegalArgumentException",
+                    "Object ID cannot be null",
+                )
+                .unwrap();
+                return $returning;
+            }
+            Err(e) => {
+                use crate::AUTOMERGE_EXCEPTION;
+                $env.throw_new(AUTOMERGE_EXCEPTION, format!("{}", e))
+                    .unwrap();
+                return $returning;
+            }
+        }
+    };
+}
+pub(crate) use obj_id_or_throw;
 
 #[no_mangle]
 #[jni_fn]
@@ -82,7 +138,7 @@ pub unsafe extern "C" fn isRootObjectId(
     _class: jni::objects::JClass,
     obj: jni::sys::jobject,
 ) -> bool {
-    let obj = JavaObjId::from_raw(&env, obj).unwrap();
+    let obj = obj_id_or_throw!(&env, obj, false);
     obj.as_ref() == &automerge::ROOT
 }
 
@@ -93,7 +149,7 @@ pub unsafe extern "C" fn objectIdToString(
     _class: jni::objects::JClass,
     obj: jni::sys::jobject,
 ) -> jobject {
-    let obj = JavaObjId::from_raw(&env, obj).unwrap();
+    let obj = obj_id_or_throw!(&env, obj);
     let s = obj.as_ref().to_string();
     let jstr = env.new_string(s).unwrap();
     jstr.into_raw()
@@ -104,9 +160,9 @@ pub unsafe extern "C" fn objectIdToString(
 pub unsafe extern "C" fn objectIdHash(
     env: jni::JNIEnv,
     _class: jni::objects::JClass,
-    left: jni::sys::jobject,
+    obj: jni::sys::jobject,
 ) -> jint {
-    let obj = JavaObjId::from_raw(&env, left).unwrap();
+    let obj = obj_id_or_throw!(&env, obj, 0);
     let mut hasher = DefaultHasher::new();
     obj.as_ref().hash(&mut hasher);
     hasher.finish() as i32
@@ -122,7 +178,17 @@ pub unsafe extern "C" fn objectIdsEqual(
 ) -> jboolean {
     let left = JavaObjId::from_raw(&env, left).unwrap();
     let right = JavaObjId::from_raw(&env, right).unwrap();
-    (left.as_ref() == right.as_ref()).into()
+    match (left, right) {
+        (None, _) | (_, None) => {
+            env.throw_new(
+                "java/lang/IllegalArgumentException",
+                "Object ID cannot be null",
+            )
+            .unwrap();
+            return false.into();
+        }
+        (Some(left), Some(right)) => (left.as_ref() == right.as_ref()).into(),
+    }
 }
 
 pub mod errors {

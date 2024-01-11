@@ -4,7 +4,10 @@ use jni::{
     sys::{jlong, jobject},
 };
 
-use crate::{obj_id::JavaObjId, AUTOMERGE_EXCEPTION};
+use crate::{
+    obj_id::{obj_id_or_throw, JavaObjId},
+    AUTOMERGE_EXCEPTION,
+};
 
 use super::{do_tx_op, TransactionOp};
 
@@ -23,7 +26,7 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
         env: jni::JNIEnv,
         tx: &mut T,
     ) -> Self::Output {
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj, ());
         let value: String = env.get_string(self.value).unwrap().into();
         match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
             Ok(_) => {}

@@ -5,7 +5,7 @@ use jni::{
     sys::{jlong, jobject},
 };
 
-use crate::{JavaObjId, AUTOMERGE_EXCEPTION};
+use crate::{obj_id::obj_id_or_throw, JavaObjId, AUTOMERGE_EXCEPTION};
 
 use super::{do_tx_op, TransactionOp};
 
@@ -30,7 +30,7 @@ impl TransactionOp for SpliceOp {
     type Output = ();
 
     unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = JavaObjId::from_raw(&env, self.obj).unwrap();
+        let obj = obj_id_or_throw!(&env, self.obj, ());
         let iter = JObjToValIter {
             jiter: JObject::from_raw(self.values),
             env: &env,
