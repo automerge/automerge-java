@@ -336,6 +336,12 @@ class AutomergeSys {
 	public static native long lookupCursorIndexInTx(TransactionPointer tx, ObjectId obj, Cursor cursor,
 			Optional<ChangeHash[]> heads);
 
+	public static native String cursorToString(Cursor cursor);
+
+	public static native Cursor cursorFromString(String encoded);
+
+	public static native Cursor cursorFromBytes(byte[] encoded);
+
 	public static native Optional<ObjectType> getObjectTypeInDoc(DocPointer doc, ObjectId obj);
 
 	public static native Optional<ObjectType> getObjectTypeInTx(TransactionPointer tx, ObjectId obj);

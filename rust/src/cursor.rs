@@ -5,8 +5,6 @@ use jni::{
     JNIEnv,
 };
 
-use crate::AUTOMERGE_EXCEPTION;
-
 #[derive(Debug)]
 pub struct Cursor(automerge::Cursor);
 
@@ -85,12 +83,39 @@ pub unsafe extern "C" fn cursorFromString(
 ) -> jobject {
     let s = env.get_string(JString::from_raw(s)).unwrap();
     let Ok(s) = s.to_str() else {
-        env.throw_new(AUTOMERGE_EXCEPTION, "invalid cursor string")
-            .unwrap();
+        env.throw_new(
+            "java/lang/IllegalArgumentException",
+            "invalid cursor string",
+        )
+        .unwrap();
         return JObject::null().into_raw();
     };
     let Ok(cursor) = automerge::Cursor::try_from(s) else {
-        env.throw_new(AUTOMERGE_EXCEPTION, "invalid cursor string")
+        env.throw_new(
+            "java/lang/IllegalArgumentException",
+            "invalid cursor string",
+        )
+        .unwrap();
+        return JObject::null().into_raw();
+    };
+    Cursor::from(cursor).into_raw(&env).unwrap()
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn cursorFromBytes(
+    env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    bytes: jni::sys::jbyteArray,
+) -> jobject {
+    let bytes = env
+        .get_byte_array_elements(bytes, jni::objects::ReleaseMode::NoCopyBack)
+        .unwrap();
+    let bytes =
+        std::slice::from_raw_parts(bytes.as_ptr() as *const u8, bytes.size().unwrap() as usize);
+    let Ok(cursor) = automerge::Cursor::try_from(bytes) else {
+        // throw IllegalArgumentException
+        env.throw_new("java/lang/IllegalArgumentException", "invalid cursor bytes")
             .unwrap();
         return JObject::null().into_raw();
     };

@@ -58,4 +58,28 @@ public final class TestCursor {
 			tx.commit();
 		}
 	}
+
+	@Test
+	public void testToFromString() {
+		Cursor cursor = doc.makeCursor(text, 3);
+		String encoded = cursor.toString();
+		Cursor decoded = Cursor.fromString(encoded);
+		Assertions.assertEquals(doc.lookupCursorIndex(text, decoded), 3);
+
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Cursor.fromString("invalid");
+		});
+	}
+
+	@Test
+	public void testToFromBytes() {
+		Cursor cursor = doc.makeCursor(text, 3);
+		byte[] encoded = cursor.toBytes();
+		Cursor decoded = Cursor.fromBytes(encoded);
+		Assertions.assertEquals(doc.lookupCursorIndex(text, decoded), 3);
+
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Cursor.fromBytes(new byte[]{0x01, 0x01});
+		});
+	}
 }
