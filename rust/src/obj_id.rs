@@ -109,12 +109,14 @@ macro_rules! obj_id_or_throw {
                     "Object ID cannot be null",
                 )
                 .unwrap();
+                #[allow(clippy::unused_unit)]
                 return $returning;
             }
             Err(e) => {
                 use crate::AUTOMERGE_EXCEPTION;
                 $env.throw_new(AUTOMERGE_EXCEPTION, format!("{}", e))
                     .unwrap();
+                #[allow(clippy::unused_unit)]
                 return $returning;
             }
         }
@@ -185,7 +187,7 @@ pub unsafe extern "C" fn objectIdsEqual(
                 "Object ID cannot be null",
             )
             .unwrap();
-            return false.into();
+            false.into()
         }
         (Some(left), Some(right)) => (left.as_ref() == right.as_ref()).into(),
     }
