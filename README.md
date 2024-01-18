@@ -15,7 +15,7 @@ Documentation is mostly just [the API docs](https://www.javadoc.io/doc/org.autom
 <dependency>
   <groupId>org.automerge</groupId>
   <artifactId>automerge</artifactId>
-  <version>0.0.6</version>
+  <version>0.0.7</version>
 </dependency>
 ```
 
@@ -30,7 +30,7 @@ dependencies {
 ### Leiningen
 
 ```
-  :dependencies [[org.automerge/automerge "0.0.6"]]
+  :dependencies [[org.automerge/automerge "0.0.7"]]
 ```
 
 ## A quick example

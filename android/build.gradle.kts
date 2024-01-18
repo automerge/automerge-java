@@ -101,7 +101,7 @@ publishing {
         register<MavenPublication>("automerge") {
             groupId = "org.automerge"
             artifactId = "androidnative"
-            version = "0.0.6"
+            version = "0.0.7"
             afterEvaluate {
                 from(components["release"])
             }
