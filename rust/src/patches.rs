@@ -124,7 +124,7 @@ fn to_jni_patch<'a>(
             env.new_object(
                 FLAG_CONFLICT_CLASS,
                 format!("(L{};)V", PROP_CLASS),
-                &[jprop.into(), 0.into()],
+                &[jprop.into()],
             )?
         }
     };
