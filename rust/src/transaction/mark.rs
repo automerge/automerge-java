@@ -2,7 +2,7 @@ use am::transaction::Transactable;
 use automerge as am;
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::{JObject, JString},
+    objects::{JObject, JPrimitiveArray, JString},
     sys::{jboolean, jdouble, jlong, jobject, jstring},
 };
 
@@ -26,17 +26,17 @@ struct MarkOp {
 impl TransactionOp for MarkOp {
     type Output = ();
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
         let expand_obj = JObject::from_raw(self.expand);
-        let expand = expand_mark::from_java(&env, expand_obj).unwrap();
+        let expand = expand_mark::from_java(env, expand_obj).unwrap();
         let name_str = JString::from_raw(self.name);
-        let name: String = env.get_string(name_str).unwrap().into();
+        let name: String = env.get_string(&name_str).unwrap().into();
         let mark = am::marks::Mark::new(name, self.value, self.start, self.end);
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+        let obj = obj_id_or_throw!(env, self.obj, ());
         match tx.mark(obj, mark, expand) {
             Ok(_) => {}
             Err(e) => {
-                let msg = format!("Error marking: {}", e);
+                let msg = format!("Error marking: {e}");
                 env.throw_new(AUTOMERGE_EXCEPTION, msg).unwrap();
             }
         }
@@ -46,7 +46,7 @@ impl TransactionOp for MarkOp {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markUint(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn markUint(
         }
     };
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn markUint(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markInt(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -92,7 +92,7 @@ pub unsafe extern "C" fn markInt(
     expand_pointer: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -108,7 +108,7 @@ pub unsafe extern "C" fn markInt(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markDouble(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn markDouble(
     expand_pointer: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -135,7 +135,7 @@ pub unsafe extern "C" fn markDouble(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markBytes(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -145,9 +145,10 @@ pub unsafe extern "C" fn markBytes(
     value: jobject,
     expand_pointer: jobject,
 ) {
+    let value = JPrimitiveArray::from_raw(value);
     let bytes = env.convert_byte_array(value).unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -163,7 +164,7 @@ pub unsafe extern "C" fn markBytes(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markString(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -174,9 +175,9 @@ pub unsafe extern "C" fn markString(
     expand_pointer: jobject,
 ) {
     let value_str = JString::from_raw(value);
-    let value: String = env.get_string(value_str).unwrap().into();
+    let value: String = env.get_string(&value_str).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -192,7 +193,7 @@ pub unsafe extern "C" fn markString(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markCounter(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -203,7 +204,7 @@ pub unsafe extern "C" fn markCounter(
     expand_pointer: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -219,7 +220,7 @@ pub unsafe extern "C" fn markCounter(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markDate(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -236,7 +237,7 @@ pub unsafe extern "C" fn markDate(
         .j()
         .unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -252,7 +253,7 @@ pub unsafe extern "C" fn markDate(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markBool(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -264,7 +265,7 @@ pub unsafe extern "C" fn markBool(
 ) {
     let value = value != 0;
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -280,7 +281,7 @@ pub unsafe extern "C" fn markBool(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn markNull(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -290,7 +291,7 @@ pub unsafe extern "C" fn markNull(
     expand_pointer: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         MarkOp {
             obj: obj_pointer,
@@ -314,16 +315,16 @@ struct Unmark {
 impl TransactionOp for Unmark {
     type Output = ();
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
         let expand_obj = JObject::from_raw(self.expand);
-        let expand = expand_mark::from_java(&env, expand_obj).unwrap();
+        let expand = expand_mark::from_java(env, expand_obj).unwrap();
         let name_str = JString::from_raw(self.name);
-        let name: String = env.get_string(name_str).unwrap().into();
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+        let name: String = env.get_string(&name_str).unwrap().into();
+        let obj = obj_id_or_throw!(env, self.obj, ());
         match tx.unmark(obj, &name, self.start, self.end, expand) {
             Ok(_) => {}
             Err(e) => {
-                let msg = format!("Error marking: {}", e);
+                let msg = format!("Error marking: {e}");
                 env.throw_new(AUTOMERGE_EXCEPTION, msg).unwrap();
             }
         }
@@ -333,7 +334,7 @@ impl TransactionOp for Unmark {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn unMark(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -343,7 +344,7 @@ pub unsafe extern "C" fn unMark(
     expand_pointer: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         Unmark {
             obj: obj_pointer,

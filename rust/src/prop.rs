@@ -18,10 +18,13 @@ impl<'a> From<jlong> for JProp<'a> {
 }
 
 impl<'a> JProp<'a> {
-    pub(crate) fn try_into_prop(self, env: jni::JNIEnv<'a>) -> Result<automerge::Prop, PropError> {
+    pub(crate) fn try_into_prop<'b>(
+        self,
+        env: &mut jni::JNIEnv<'b>,
+    ) -> Result<automerge::Prop, PropError> {
         match self {
             Self::String(s) => {
-                let jstr = env.get_string(s)?;
+                let jstr = env.get_string(&s)?;
                 let s = jstr.to_str().map_err(|_| PropError::BadKey)?;
                 Ok(automerge::Prop::Map(s.to_string()))
             }

@@ -23,11 +23,11 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
 
     unsafe fn execute<T: automerge::transaction::Transactable>(
         self,
-        env: jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         tx: &mut T,
     ) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj, ());
-        let value: String = env.get_string(self.value).unwrap().into();
+        let obj = obj_id_or_throw!(env, self.obj, ());
+        let value: String = env.get_string(&self.value).unwrap().into();
         match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
             Ok(_) => {}
             Err(e) => {
@@ -40,7 +40,7 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn spliceText(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn spliceText(
     chars: JString,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SpliceTextOp {
             obj: obj_pointer,

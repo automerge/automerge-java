@@ -1,7 +1,7 @@
 use automerge::{transaction::Transactable, ScalarValue};
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::JObject,
+    objects::{JObject, JPrimitiveArray},
     sys::{jlong, jobject},
 };
 
@@ -29,11 +29,11 @@ struct SpliceOp {
 impl TransactionOp for SpliceOp {
     type Output = ();
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
+        let obj = obj_id_or_throw!(env, self.obj, ());
         let iter = JObjToValIter {
             jiter: JObject::from_raw(self.values),
-            env: &env,
+            env,
         };
         match tx.splice(obj, self.index, self.delete, iter) {
             Ok(_) => {}
@@ -47,7 +47,7 @@ impl TransactionOp for SpliceOp {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn splice(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn splice(
     values: jobject,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SpliceOp {
             obj: obj_pointer,
@@ -67,9 +67,9 @@ pub unsafe extern "C" fn splice(
     )
 }
 
-struct JObjToValIter<'a> {
+struct JObjToValIter<'a, 'b> {
     jiter: JObject<'a>,
-    env: &'a jni::JNIEnv<'a>,
+    env: &'b mut jni::JNIEnv<'a>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -80,50 +80,51 @@ enum Error {
     InvalidValue,
 }
 
-impl<'a> JObjToValIter<'a> {
+impl<'a, 'b> JObjToValIter<'a, 'b> {
     fn try_next(&mut self) -> Result<Option<ScalarValue>, Error> {
         let next = self
             .env
-            .call_method(self.jiter, "hasNext", "()Z", &[])?
+            .call_method(&self.jiter, "hasNext", "()Z", &[])?
             .z()?;
         if next {
             let obj = self
                 .env
-                .call_method(self.jiter, "next", "()Ljava/lang/Object;", &[])?
+                .call_method(&self.jiter, "next", "()Ljava/lang/Object;", &[])?
                 .l()?;
-            if self.env.is_instance_of(obj, INT_CLASS)? {
+            if self.env.is_instance_of(&obj, INT_CLASS)? {
                 let val = self.env.get_field(obj, "value", "J")?.j()?;
                 Ok(Some(ScalarValue::Int(val)))
-            } else if self.env.is_instance_of(obj, UINT_CLASS)? {
+            } else if self.env.is_instance_of(&obj, UINT_CLASS)? {
                 let val = self.env.get_field(obj, "value", "J")?.j()?;
                 // Cast is okay because UInt ensures value is positive
                 Ok(Some(ScalarValue::Uint(val as u64)))
-            } else if self.env.is_instance_of(obj, F64_CLASS)? {
+            } else if self.env.is_instance_of(&obj, F64_CLASS)? {
                 let val = self.env.get_field(obj, "value", "D")?.d()?;
                 Ok(Some(ScalarValue::F64(val)))
-            } else if self.env.is_instance_of(obj, BOOL_CLASS)? {
+            } else if self.env.is_instance_of(&obj, BOOL_CLASS)? {
                 let val = self.env.get_field(obj, "value", "Z")?.z()?;
                 Ok(Some(ScalarValue::Boolean(val)))
-            } else if self.env.is_instance_of(obj, BYTES_CLASS)? {
+            } else if self.env.is_instance_of(&obj, BYTES_CLASS)? {
                 let bytes = self.env.get_field(obj, "value", "[B")?.l()?;
-                let val = self.env.convert_byte_array(bytes.into_raw())?;
+                let bytes = JPrimitiveArray::from(bytes);
+                let val = self.env.convert_byte_array(&bytes)?;
                 Ok(Some(ScalarValue::Bytes(val)))
-            } else if self.env.is_instance_of(obj, NULL_CLASS)? {
+            } else if self.env.is_instance_of(&obj, NULL_CLASS)? {
                 Ok(Some(ScalarValue::Null))
-            } else if self.env.is_instance_of(obj, STR_CLASS)? {
+            } else if self.env.is_instance_of(&obj, STR_CLASS)? {
                 let sval = self
                     .env
                     .get_field(obj, "value", "Ljava/lang/String;")?
                     .l()?;
-                let s = self.env.get_string(sval.into())?;
+                let s = self.env.get_string((&sval).into())?;
                 let sref = s.to_str();
                 Ok(Some(ScalarValue::Str(sref.unwrap().to_string().into())))
-            } else if self.env.is_instance_of(obj, TIMESTAMP_CLASS)? {
+            } else if self.env.is_instance_of(&obj, TIMESTAMP_CLASS)? {
                 let date = self.env.get_field(obj, "value", "Ljava/util/Date;")?.l()?;
                 let val = self.env.call_method(date, "getTime", "()J", &[])?.j()?;
                 Ok(Some(ScalarValue::Timestamp(val)))
-            } else if self.env.is_instance_of(obj, COUNTER_CLASS)? {
-                let val = self.env.get_field(obj, "value", "J")?.j()?;
+            } else if self.env.is_instance_of(&obj, COUNTER_CLASS)? {
+                let val = self.env.get_field(&obj, "value", "J")?.j()?;
                 Ok(Some(ScalarValue::Counter(val.into())))
             } else {
                 //self.env.throw_new(AUTOMERGE_EXCEPTION, "Unsupported type")?;
@@ -135,12 +136,12 @@ impl<'a> JObjToValIter<'a> {
     }
 }
 
-impl<'a> Iterator for JObjToValIter<'a> {
+impl<'a, 'b> Iterator for JObjToValIter<'a, 'b> {
     type Item = ScalarValue;
     fn next(&mut self) -> Option<Self::Item> {
         match self.try_next() {
             Ok(i) => i,
-            Err(Error::Jni(e)) => panic!("Jni error: {}", e),
+            Err(Error::Jni(e)) => panic!("Jni error: {e}"),
             Err(Error::InvalidValue) => {
                 self.env
                     .throw_new(AUTOMERGE_EXCEPTION, "Unsupported type")

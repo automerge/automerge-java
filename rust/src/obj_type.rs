@@ -32,7 +32,7 @@ impl JavaObjType {
     /// If the object does not have an `ordinal` method which returns an integer or if the ordinal
     /// returned is not recognized.
     pub(crate) unsafe fn from_java_enum(
-        env: &jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         obj: jobject,
     ) -> Result<Self, FromJavaError> {
         let obj = JObject::from_raw(obj);
@@ -52,14 +52,14 @@ impl JavaObjType {
     /// Convert a `JavaObjType` to a `JOBject`
     pub(crate) unsafe fn to_java_enum<'a>(
         &'_ self,
-        env: jni::JNIEnv<'a>,
+        env: &mut jni::JNIEnv<'a>,
     ) -> Result<JObject<'a>, jni::errors::Error> {
         let field_name = match self {
             Self::Map => MAP_FIELD_NAME,
             Self::List => LIST_FIELD_NAME,
             Self::Text => TEXT_FIELD_NAME,
         };
-        let field = env.get_static_field(CLASSNAME, field_name, format!("L{};", CLASSNAME))?;
+        let field = env.get_static_field(CLASSNAME, field_name, format!("L{CLASSNAME};"))?;
         field.l()
     }
 }

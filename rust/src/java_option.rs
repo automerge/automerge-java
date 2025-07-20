@@ -1,7 +1,7 @@
 use jni::objects::{JObject, JValue};
 
 pub(crate) unsafe fn make_optional<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     val: JValue,
 ) -> Result<JObject<'a>, jni::errors::Error> {
     env.call_static_method(
@@ -14,7 +14,7 @@ pub(crate) unsafe fn make_optional<'a>(
 }
 
 pub(crate) unsafe fn make_empty_option<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
 ) -> Result<JObject<'a>, jni::errors::Error> {
     env.call_static_method("java/util/Optional", "empty", "()Ljava/util/Optional;", &[])?
         .l()

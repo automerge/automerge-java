@@ -2,8 +2,8 @@ use am::ObjType;
 use automerge as am;
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::{JObject, JString},
-    sys::{jboolean, jbyteArray, jdouble, jlong, jobject},
+    objects::{JObject, JPrimitiveArray, JString},
+    sys::{jboolean, jbyteArray, jdouble, jlong, jobject, jstring},
 };
 
 use crate::{
@@ -24,10 +24,10 @@ impl TransactionOp for InsertOp<am::ScalarValue> {
     type Output = ();
     unsafe fn execute<T: am::transaction::Transactable>(
         self,
-        env: jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         tx: &mut T,
     ) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+        let obj = obj_id_or_throw!(env, self.obj, ());
         let idx = match usize::try_from(self.index) {
             Ok(i) => i,
             Err(_) => {
@@ -50,10 +50,10 @@ impl TransactionOp for InsertOp<ObjType> {
 
     unsafe fn execute<T: am::transaction::Transactable>(
         self,
-        env: jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         tx: &mut T,
     ) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj);
+        let obj = obj_id_or_throw!(env, self.obj);
         let idx = match usize::try_from(self.index) {
             Ok(i) => i,
             Err(_) => {
@@ -69,14 +69,14 @@ impl TransactionOp for InsertOp<ObjType> {
                 return JObject::null().into_raw();
             }
         };
-        JavaObjId::from(value).into_raw(&env).unwrap()
+        JavaObjId::from(value).into_raw(env).unwrap()
     }
 }
 
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertDoubleInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn insertDoubleInList(
     value: jdouble,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -97,16 +97,17 @@ pub unsafe extern "C" fn insertDoubleInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertStringInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
-    value: JString,
+    value: jstring,
 ) {
-    let value: String = env.get_string(value).unwrap().into();
+    let value = JString::from_raw(value);
+    let value: String = env.get_string(&value).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -119,7 +120,7 @@ pub unsafe extern "C" fn insertStringInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertIntInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -127,7 +128,7 @@ pub unsafe extern "C" fn insertIntInList(
     value: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -140,7 +141,7 @@ pub unsafe extern "C" fn insertIntInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertUintInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -156,7 +157,7 @@ pub unsafe extern "C" fn insertUintInList(
         }
     };
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -169,16 +170,17 @@ pub unsafe extern "C" fn insertUintInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertBytesInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
     value: jbyteArray,
 ) {
-    let bytes = env.convert_byte_array(value).unwrap();
+    let value = JPrimitiveArray::from_raw(value);
+    let bytes = env.convert_byte_array(&value).unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -191,14 +193,14 @@ pub unsafe extern "C" fn insertBytesInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertNullInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -211,7 +213,7 @@ pub unsafe extern "C" fn insertNullInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertCounterInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -219,7 +221,7 @@ pub unsafe extern "C" fn insertCounterInList(
     value: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -232,7 +234,7 @@ pub unsafe extern "C" fn insertCounterInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertDateInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -246,7 +248,7 @@ pub unsafe extern "C" fn insertDateInList(
         .j()
         .unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -259,7 +261,7 @@ pub unsafe extern "C" fn insertDateInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertBoolInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -268,7 +270,7 @@ pub unsafe extern "C" fn insertBoolInList(
 ) {
     let value = value != 0;
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,
@@ -281,16 +283,16 @@ pub unsafe extern "C" fn insertBoolInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn insertObjectInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
     value: jobject,
 ) -> jobject {
-    let obj_type = JavaObjType::from_java_enum(&env, value).unwrap();
+    let obj_type = JavaObjType::from_java_enum(&mut env, value).unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         InsertOp {
             obj: obj_pointer,

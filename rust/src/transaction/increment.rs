@@ -1,7 +1,7 @@
 use automerge_jni_macros::jni_fn;
 use jni::{
     objects::JString,
-    sys::{jlong, jobject},
+    sys::{jlong, jobject, jstring},
 };
 
 use crate::{
@@ -22,10 +22,10 @@ impl TransactionOp for IncrementOp {
 
     unsafe fn execute<T: automerge::transaction::Transactable>(
         self,
-        env: jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         tx: &mut T,
     ) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+        let obj = obj_id_or_throw!(env, self.obj, ());
         match tx.increment(obj, self.key, self.value) {
             Ok(_) => {}
             Err(e) => {
@@ -38,16 +38,17 @@ impl TransactionOp for IncrementOp {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn incrementInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
-    key: JString,
+    key: jstring,
     value: jlong,
 ) {
-    let key: String = env.get_string(key).unwrap().into();
+    let key = JString::from_raw(key);
+    let key: String = env.get_string(&key).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         IncrementOp {
             obj: obj_pointer,
@@ -60,7 +61,7 @@ pub unsafe extern "C" fn incrementInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn incrementInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -76,7 +77,7 @@ pub unsafe extern "C" fn incrementInList(
         }
     };
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         IncrementOp {
             obj: obj_pointer,
