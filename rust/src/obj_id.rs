@@ -5,8 +5,8 @@ use std::{
 
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::JObject,
-    sys::{jboolean, jbyteArray, jint, jobject},
+    objects::{JObject, JPrimitiveArray},
+    sys::{jboolean, jint, jobject},
     JNIEnv,
 };
 
@@ -28,49 +28,41 @@ impl From<automerge::ObjId> for JavaObjId {
 const CLASSNAME: &str = am_classname!("ObjectId");
 
 impl JavaObjId {
-    pub(crate) fn into_raw(self, env: &JNIEnv) -> Result<jobject, jni::errors::Error> {
+    pub(crate) fn into_raw(self, env: &mut JNIEnv) -> Result<jobject, jni::errors::Error> {
         Ok(self.into_jobject(env)?.into_raw())
     }
 
     pub(crate) fn into_jobject<'a>(
         self,
-        env: &JNIEnv<'a>,
+        env: &mut JNIEnv<'a>,
     ) -> Result<JObject<'a>, jni::errors::Error> {
         let raw_obj = env.alloc_object(CLASSNAME)?;
         let bytes = self.0.to_bytes();
         let jbytes = env.byte_array_from_slice(&bytes)?;
-        env.set_field(
-            raw_obj,
-            "raw",
-            "[B",
-            unsafe { JObject::from_raw(jbytes) }.into(),
-        )?;
+        env.set_field(&raw_obj, "raw", "[B", (&jbytes).into())?;
         Ok(raw_obj)
     }
 
     pub(crate) unsafe fn from_raw(
-        env: &JNIEnv<'_>,
+        env: &mut JNIEnv<'_>,
         raw: jobject,
     ) -> Result<Option<Self>, errors::FromRaw> {
         let obj = JObject::from_raw(raw);
         let id_is_null = env
-            .is_same_object(obj, JObject::null())
+            .is_same_object(&obj, JObject::null())
             .map_err(errors::FromRaw::GetRaw)?;
         if id_is_null {
             return Ok(None);
         }
         let bytes_jobject = env
-            .get_field(obj, "raw", "[B")
+            .get_field(&obj, "raw", "[B")
             .map_err(errors::FromRaw::GetRaw)?
             .l()
-            .map_err(errors::FromRaw::RawPointerNotObject)?
-            .into_raw() as jbyteArray;
-        let arr = env
-            .get_byte_array_elements(bytes_jobject, jni::objects::ReleaseMode::NoCopyBack)
+            .map_err(errors::FromRaw::RawPointerNotObject)?;
+        let bytes = env
+            .convert_byte_array(JPrimitiveArray::from(bytes_jobject))
             .map_err(errors::FromRaw::GetByteArray)?;
-        let bytes =
-            std::slice::from_raw_parts(arr.as_ptr() as *const u8, arr.size().unwrap() as usize);
-        let obj: automerge::ObjId = bytes.try_into()?;
+        let obj = automerge::ObjId::try_from(bytes.as_slice()).map_err(errors::FromRaw::Invalid)?;
         //Ok(Some(Self(obj)))
         Ok(Some(Self(obj)))
     }
@@ -85,7 +77,7 @@ impl JavaObjId {
 /// let obj = obj_id_or_throw!(env, some_obj_id);
 /// ```
 ///
-/// Takes a [`jni::JNIEnv`] and a `jobject` and returns a [`JavaObjId`] or throws an exception and
+/// Takes a [`&mut jni::JNIEnv`] and a `jobject` and returns a [`JavaObjId`] or throws an exception and
 /// early returns a `jobject` from the surrounding function.
 ///
 /// The second form, which looks like this:
@@ -127,31 +119,33 @@ pub(crate) use obj_id_or_throw;
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn rootObjectId(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
 ) -> jni::sys::jobject {
-    JavaObjId(automerge::ObjId::Root).into_raw(&env).unwrap()
+    JavaObjId(automerge::ObjId::Root)
+        .into_raw(&mut env)
+        .unwrap()
 }
 
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn isRootObjectId(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     obj: jni::sys::jobject,
 ) -> bool {
-    let obj = obj_id_or_throw!(&env, obj, false);
+    let obj = obj_id_or_throw!(&mut env, obj, false);
     obj.as_ref() == &automerge::ROOT
 }
 
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn objectIdToString(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     obj: jni::sys::jobject,
 ) -> jobject {
-    let obj = obj_id_or_throw!(&env, obj);
+    let obj = obj_id_or_throw!(&mut env, obj);
     let s = obj.as_ref().to_string();
     let jstr = env.new_string(s).unwrap();
     jstr.into_raw()
@@ -160,11 +154,11 @@ pub unsafe extern "C" fn objectIdToString(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn objectIdHash(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     obj: jni::sys::jobject,
 ) -> jint {
-    let obj = obj_id_or_throw!(&env, obj, 0);
+    let obj = obj_id_or_throw!(&mut env, obj, 0);
     let mut hasher = DefaultHasher::new();
     obj.as_ref().hash(&mut hasher);
     hasher.finish() as i32
@@ -173,13 +167,13 @@ pub unsafe extern "C" fn objectIdHash(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn objectIdsEqual(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     left: jni::sys::jobject,
     right: jni::sys::jobject,
 ) -> jboolean {
-    let left = JavaObjId::from_raw(&env, left).unwrap();
-    let right = JavaObjId::from_raw(&env, right).unwrap();
+    let left = JavaObjId::from_raw(&mut env, left).unwrap();
+    let right = JavaObjId::from_raw(&mut env, right).unwrap();
     match (left, right) {
         (None, _) | (_, None) => {
             env.throw_new(

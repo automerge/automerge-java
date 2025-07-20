@@ -2,7 +2,7 @@ use automerge::transaction::Transactable;
 use automerge_jni_macros::jni_fn;
 use jni::{
     objects::JString,
-    sys::{jlong, jobject},
+    sys::{jlong, jobject, jstring},
 };
 
 use crate::{
@@ -20,8 +20,8 @@ struct DeleteOp {
 impl TransactionOp for DeleteOp {
     type Output = ();
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
+        let obj = obj_id_or_throw!(env, self.obj, ());
         match tx.delete(obj, self.key) {
             Ok(_) => {}
             Err(e) => {
@@ -34,15 +34,16 @@ impl TransactionOp for DeleteOp {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn deleteInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
-    key: JString,
+    key: jstring,
 ) {
-    let k: String = env.get_string(key).unwrap().into();
+    let key = JString::from_raw(key);
+    let k: String = env.get_string(&key).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         DeleteOp {
             obj: obj_pointer,
@@ -53,8 +54,8 @@ pub unsafe extern "C" fn deleteInMap(
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn deleteInList(
-    env: jni::JNIEnv,
+pub unsafe extern "C" fn deleteInList<'local>(
+    mut env: jni::JNIEnv<'local>,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -69,11 +70,11 @@ pub unsafe extern "C" fn deleteInList(
         }
     };
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         DeleteOp {
             obj: obj_pointer,
             key: idx.into(),
         },
-    )
+    );
 }

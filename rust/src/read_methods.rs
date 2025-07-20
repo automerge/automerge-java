@@ -59,48 +59,48 @@ impl SomeReadPointer {
 
     unsafe fn get<'a, P: Into<JProp<'a>>>(
         self,
-        env: jni::JNIEnv<'a>,
+        mut env: jni::JNIEnv<'a>,
         obj_pointer: jobject,
         key: P,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
 
-        let key = catch!(env, key.into().try_into_prop(env));
+        let key = catch!(env, key.into().try_into_prop(&mut env));
         let result = catch!(env, read.get(obj, key));
 
-        to_optional_amvalue(&env, result).unwrap().into_raw()
+        to_optional_amvalue(&mut env, result).unwrap().into_raw()
     }
 
     unsafe fn get_at<'a, P: Into<JProp<'a>>>(
         self,
-        env: jni::JNIEnv<'a>,
+        mut env: jni::JNIEnv<'a>,
         obj_pointer: jobject,
         key: P,
         heads_pointer: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = heads_from_jobject(&env, heads_pointer).unwrap();
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = heads_from_jobject(&mut env, heads_pointer).unwrap();
 
-        let key = catch!(env, key.into().try_into_prop(env));
+        let key = catch!(env, key.into().try_into_prop(&mut env));
         let result = catch!(env, read.get_at(obj, key, &heads));
 
-        to_optional_amvalue(&env, result).unwrap().into_raw()
+        to_optional_amvalue(&mut env, result).unwrap().into_raw()
     }
 
     unsafe fn get_all<'a, P: Into<JProp<'a>>>(
         self,
-        env: jni::JNIEnv<'a>,
+        mut env: jni::JNIEnv<'a>,
         obj_pointer: jobject,
         key: P,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
 
-        let key = catch!(env, key.into().try_into_prop(env));
-        let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
+        let key = catch!(env, key.into().try_into_prop(&mut env));
+        let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
 
         use automerge::Prop;
         let result: Result<_, automerge::AutomergeError> =
@@ -111,22 +111,22 @@ impl SomeReadPointer {
                             Some(heads) => read.get_all_at(obj, key, &heads)?,
                             None => read.get_all(obj, key)?,
                         };
-                        Ok(make_optional_conflicts(env, value))
+                        Ok(make_optional_conflicts(&mut env, value))
                     }
                     (Prop::Seq(_), automerge::ObjType::List | automerge::ObjType::Text) => {
                         let values = match heads {
                             Some(heads) => read.get_all_at(obj, key, &heads)?,
                             None => read.get_all(obj, key)?,
                         };
-                        Ok(make_optional_conflicts(env, values))
+                        Ok(make_optional_conflicts(&mut env, values))
                     }
                     _ => Ok(None),
                 }
             }();
 
         match result {
-            Ok(Some(c)) => make_optional(&env, c.into()).unwrap().into_raw(),
-            Ok(None) => make_empty_option(&env).unwrap().into_raw(),
+            Ok(Some(c)) => make_optional(&mut env, (&c).into()).unwrap().into_raw(),
+            Ok(None) => make_empty_option(&mut env).unwrap().into_raw(),
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
                 JObject::null().into_raw()
@@ -134,7 +134,7 @@ impl SomeReadPointer {
         }
     }
 
-    unsafe fn heads(self, env: jni::JNIEnv) -> jobject {
+    unsafe fn heads(self, env: &mut jni::JNIEnv) -> jobject {
         let read = SomeRead::from_pointer(env, self);
         let heads = read.heads();
 
@@ -142,28 +142,28 @@ impl SomeReadPointer {
             .new_object_array(heads.len() as i32, CHANGEHASH_CLASS, JObject::null())
             .unwrap();
         for (i, head) in heads.iter().enumerate() {
-            let hash = changehash_to_jobject(&env, head).unwrap();
-            env.set_object_array_element(heads_arr, i as i32, hash)
+            let hash = changehash_to_jobject(env, head).unwrap();
+            env.set_object_array_element(&heads_arr, i as i32, hash)
                 .unwrap();
         }
-        heads_arr
+        heads_arr.into_raw()
     }
 
     unsafe fn keys(
         self,
-        env: jni::JNIEnv,
+        env: &mut jni::JNIEnv,
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
         let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
+        let obj = obj_id_or_throw!(env, obj_pointer);
+        let heads = heads.map(|h| heads_from_jobject(env, h).unwrap());
         let keys = match read.object_type(&obj) {
             Ok(automerge::ObjType::Map) => match heads {
                 Some(h) => read.keys_at(obj, &h).collect::<Vec<_>>(),
                 None => read.keys(obj).collect::<Vec<_>>(),
             },
-            Ok(_) => return make_empty_option(&env).unwrap().into_raw(),
+            Ok(_) => return make_empty_option(env).unwrap().into_raw(),
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
                 return JObject::null().into_raw();
@@ -174,24 +174,23 @@ impl SomeReadPointer {
             .unwrap();
         for (index, k) in keys.into_iter().enumerate() {
             let k = env.new_string(k).unwrap();
-            env.set_object_array_element(keys_arr, index as i32, k)
+            env.set_object_array_element(&keys_arr, index as i32, k)
                 .unwrap();
         }
-        let arr_obj = JObject::from_raw(keys_arr);
-        make_optional(&env, arr_obj.into()).unwrap().into_raw()
+        make_optional(env, (&keys_arr).into()).unwrap().into_raw()
     }
 
     unsafe fn length(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jlong {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer, 0);
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer, 0);
         match heads {
             Some(h) => {
-                let heads = heads_from_jobject(&env, h).unwrap();
+                let heads = heads_from_jobject(&mut env, h).unwrap();
                 read.length_at(obj, &heads) as i64
             }
             None => read.length(obj) as i64,
@@ -200,21 +199,21 @@ impl SomeReadPointer {
 
     unsafe fn list_items(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
         let items = match read.object_type(&obj) {
             Ok(am::ObjType::List) => match heads {
                 Some(h) => read.list_range_at(obj, .., &h).collect::<Vec<_>>(),
                 None => read.list_range(obj, ..).collect::<Vec<_>>(),
             },
-            Ok(_) => return make_empty_option(&env).unwrap().into_raw(),
+            Ok(_) => return make_empty_option(&mut env).unwrap().into_raw(),
             Err(am::AutomergeError::NotAnObject) => {
-                return make_empty_option(&env).unwrap().into_raw()
+                return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
@@ -230,32 +229,33 @@ impl SomeReadPointer {
             )
             .unwrap();
         for (idx, ListRangeItem { value, id, .. }) in items.into_iter().enumerate() {
-            let val = to_amvalue(&env, (value, id)).unwrap();
-            env.set_object_array_element(jitems, idx as i32, val)
+            let val = to_amvalue(&mut env, (value, id)).unwrap();
+            env.set_object_array_element(&jitems, idx as i32, val)
                 .unwrap();
         }
-        let items_obj = JObject::from_raw(jitems);
-        make_optional(&env, items_obj.into()).unwrap().into_raw()
+        make_optional(&mut env, (&jitems).into())
+            .unwrap()
+            .into_raw()
     }
 
     unsafe fn map_entries(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
 
         let entries = match read.object_type(&obj) {
             Ok(automerge::ObjType::Map) => match heads {
                 Some(h) => read.map_range_at(obj, .., &h).collect::<Vec<_>>(),
                 None => read.map_range(obj, ..).collect::<Vec<_>>(),
             },
-            Ok(..) => return make_empty_option(&env).unwrap().into_raw(),
+            Ok(..) => return make_empty_option(&mut env).unwrap().into_raw(),
             Err(am::AutomergeError::NotAnObject) => {
-                return make_empty_option(&env).unwrap().into_raw()
+                return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
@@ -272,45 +272,45 @@ impl SomeReadPointer {
         for (i, MapRangeItem { key, value, id, .. }) in entries.into_iter().enumerate() {
             let entry = env.alloc_object(am_classname!("MapEntry")).unwrap();
             env.set_field(
-                entry,
+                &entry,
                 "key",
                 "Ljava/lang/String;",
-                env.new_string(key).unwrap().into(),
+                (&env.new_string(key).unwrap()).into(),
             )
             .unwrap();
-            let am_val = to_amvalue(&env, (value, id)).unwrap();
+            let am_val = to_amvalue(&mut env, (value, id)).unwrap();
             env.set_field(
-                entry,
+                &entry,
                 "value",
                 format!("L{};", am_classname!("AmValue")),
-                am_val.into(),
+                (&am_val).into(),
             )
             .unwrap();
-            env.set_object_array_element(entries_arr, i as i32, entry)
+            env.set_object_array_element(&entries_arr, i as i32, entry)
                 .unwrap();
         }
-        make_optional(&env, JObject::from_raw(entries_arr).into())
+        make_optional(&mut env, (&entries_arr).into())
             .unwrap()
             .into_raw()
     }
 
     unsafe fn text(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = heads.map(|h| heads_from_jobject(&env, h).unwrap());
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
         let text = match read.object_type(&obj) {
             Ok(am::ObjType::Text) => match heads {
                 Some(h) => read.text_at(obj, &h),
                 None => read.text(obj),
             },
-            Ok(..) => return make_empty_option(&env).unwrap().into_raw(),
+            Ok(..) => return make_empty_option(&mut env).unwrap().into_raw(),
             Err(am::AutomergeError::NotAnObject) => {
-                return make_empty_option(&env).unwrap().into_raw()
+                return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
@@ -319,18 +319,18 @@ impl SomeReadPointer {
         };
         let text = catch!(env, text);
         let text = env.new_string(text).unwrap();
-        make_optional(&env, text.into()).unwrap().into_raw()
+        make_optional(&mut env, (&text).into()).unwrap().into_raw()
     }
 
     unsafe fn marks(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         heads_option: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = maybe_heads(env, heads_option).unwrap();
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = maybe_heads(&mut env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
             read.marks_at(obj, &h)
         } else {
@@ -345,23 +345,28 @@ impl SomeReadPointer {
         };
         let marks_arr = env.new_object("java/util/ArrayList", "()V", &[]).unwrap();
         for mark in marks {
-            let jmark = mark_to_java(&env, &mark).unwrap();
-            env.call_method(marks_arr, "add", "(Ljava/lang/Object;)Z", &[jmark.into()])
-                .unwrap();
+            let jmark = mark_to_java(&mut env, &mark).unwrap();
+            env.call_method(
+                &marks_arr,
+                "add",
+                "(Ljava/lang/Object;)Z",
+                &[(&jmark).into()],
+            )
+            .unwrap();
         }
         marks_arr.into_raw()
     }
 
     unsafe fn marks_at_index(
         self,
-        env: jni::JNIEnv,
+        mut env: jni::JNIEnv,
         obj_pointer: jobject,
         index: jint,
         heads_option: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = maybe_heads(env, heads_option).unwrap();
+        let read = SomeRead::from_pointer(&mut env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = maybe_heads(&mut env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
             read.get_marks(obj, index as usize, Some(&h))
         } else {
@@ -376,13 +381,13 @@ impl SomeReadPointer {
         };
         let marks_map = env.new_object("java/util/HashMap", "()V", &[]).unwrap();
         for (mark_name, mark_value) in marks.iter() {
-            let value = scalar_to_amvalue(&env, mark_value).unwrap();
+            let value = scalar_to_amvalue(&mut env, mark_value).unwrap();
             let mark_name = env.new_string(mark_name).unwrap();
             env.call_method(
-                marks_map,
+                &marks_map,
                 "put",
                 "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-                &[mark_name.into(), value.into()],
+                &[(&mark_name).into(), (&value).into()],
             )
             .unwrap();
         }
@@ -391,14 +396,14 @@ impl SomeReadPointer {
 
     unsafe fn make_cursor(
         self,
-        env: jni::JNIEnv<'_>,
+        mut env: jni::JNIEnv<'_>,
         obj_pointer: jobject,
         index: jlong,
         maybe_heads_pointer: jobject,
     ) -> jobject {
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
-        let read = SomeRead::from_pointer(env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let heads = maybe_heads(&mut env, maybe_heads_pointer).unwrap();
+        let read = SomeRead::from_pointer(&mut env, self);
         if index < 0 {
             env.throw_new(AUTOMERGE_EXCEPTION, "Index must be >= 0")
                 .unwrap();
@@ -412,21 +417,21 @@ impl SomeReadPointer {
                 return JObject::null().into_raw();
             }
         };
-        Cursor::from(cursor).into_raw(&env).unwrap()
+        Cursor::from(cursor).into_raw(&mut env).unwrap()
     }
 
     unsafe fn lookup_cursor_index(
         self,
-        env: jni::JNIEnv<'_>,
+        mut env: jni::JNIEnv<'_>,
         obj_pointer: jobject,
         cursor_pointer: jobject,
         maybe_heads_pointer: jobject,
     ) -> jlong {
-        let obj = obj_id_or_throw!(&env, obj_pointer, 0);
-        let heads = maybe_heads(env, maybe_heads_pointer).unwrap();
-        let read = SomeRead::from_pointer(env, self);
+        let obj = obj_id_or_throw!(&mut env, obj_pointer, 0);
+        let heads = maybe_heads(&mut env, maybe_heads_pointer).unwrap();
+        let read = SomeRead::from_pointer(&mut env, self);
 
-        let cursor = Cursor::from_raw(&env, cursor_pointer).unwrap();
+        let cursor = Cursor::from_raw(&mut env, cursor_pointer).unwrap();
         let index = read.get_cursor_position(obj, cursor.as_ref(), heads.as_deref());
         let index = match index {
             Ok(i) => i,
@@ -438,35 +443,35 @@ impl SomeReadPointer {
         index as i64
     }
 
-    unsafe fn get_object_type(self, env: jni::JNIEnv<'_>, obj_pointer: jobject) -> jobject {
-        let obj = obj_id_or_throw!(&env, obj_pointer);
-        let read = SomeRead::from_pointer(env, self);
+    unsafe fn get_object_type(self, mut env: jni::JNIEnv<'_>, obj_pointer: jobject) -> jobject {
+        let obj = obj_id_or_throw!(&mut env, obj_pointer);
+        let read = SomeRead::from_pointer(&mut env, self);
         let obj_type = match read.object_type(obj) {
             Ok(o) => o,
             Err(automerge::AutomergeError::InvalidObjId(_)) => {
-                return make_empty_option(&env).unwrap().into_raw();
+                return make_empty_option(&mut env).unwrap().into_raw();
             }
             Err(e) => {
                 env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
                 return JObject::null().into_raw();
             }
         };
-        let val = JavaObjType::from(obj_type).to_java_enum(env).unwrap();
-        return make_optional(&env, val.into()).unwrap().into_raw();
+        let val = JavaObjType::from(obj_type).to_java_enum(&mut env).unwrap();
+        make_optional(&mut env, (&val).into()).unwrap().into_raw()
     }
 }
 
 unsafe fn maybe_heads(
-    env: jni::JNIEnv<'_>,
+    env: &mut jni::JNIEnv<'_>,
     maybe_heads: jobject,
 ) -> Result<Option<Vec<automerge::ChangeHash>>, jni::errors::Error> {
     let heads_option = JObject::from_raw(maybe_heads);
-    let heads_present = env.call_method(heads_option, "isPresent", "()Z", &[])?;
+    let heads_present = env.call_method(&heads_option, "isPresent", "()Z", &[])?;
     if heads_present.z().unwrap() {
         let heads = env
             .call_method(heads_option, "get", "()Ljava/lang/Object;", &[])?
             .l()?;
-        Ok(Some(heads_from_jobject(&env, heads.into_raw())?))
+        Ok(Some(heads_from_jobject(env, heads.into_raw())?))
     } else {
         Ok(None)
     }
@@ -479,20 +484,26 @@ enum SomeRead<'a> {
 }
 
 impl<'a> SomeRead<'a> {
-    unsafe fn from_pointer(env: jni::JNIEnv<'a>, pointer: SomeReadPointer) -> SomeRead<'a> {
+    unsafe fn from_pointer(env: &mut jni::JNIEnv<'a>, pointer: SomeReadPointer) -> SomeRead<'a> {
         match pointer {
             SomeReadPointer::Doc(doc_pointer) => Self::from_doc_pointer(env, doc_pointer),
             SomeReadPointer::Tx(tx) => Self::from_tx_pointer(env, tx),
         }
     }
 
-    pub(crate) unsafe fn from_tx_pointer(env: jni::JNIEnv<'a>, pointer: jobject) -> SomeRead<'a> {
-        let tx = AmTransaction::<'a>::from_pointer_obj(&env, pointer).unwrap();
+    pub(crate) unsafe fn from_tx_pointer(
+        env: &mut jni::JNIEnv<'a>,
+        pointer: jobject,
+    ) -> SomeRead<'a> {
+        let tx = AmTransaction::<'a>::from_pointer_obj(env, pointer).unwrap();
         Self::Transaction(tx)
     }
 
-    pub(crate) unsafe fn from_doc_pointer(env: jni::JNIEnv<'a>, pointer: jobject) -> SomeRead<'a> {
-        let am = automerge::Automerge::from_pointer_obj(&env, pointer).unwrap();
+    pub(crate) unsafe fn from_doc_pointer(
+        env: &mut jni::JNIEnv<'a>,
+        pointer: jobject,
+    ) -> SomeRead<'a> {
+        let am = automerge::Automerge::from_pointer_obj(env, pointer).unwrap();
         SomeRead::Doc(am)
     }
 }

@@ -1,7 +1,8 @@
 use automerge as am;
 use automerge::transaction::Transactable;
 use automerge_jni_macros::jni_fn;
-use jni::sys::jboolean;
+use jni::objects::JPrimitiveArray;
+use jni::sys::{jboolean, jstring};
 use jni::{
     objects::{JObject, JString},
     sys::{jbyteArray, jint, jlong, jobject},
@@ -23,7 +24,7 @@ struct SetOp<'a, V: Into<automerge::ScalarValue>> {
 impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
     type Output = ();
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
         let key = match self.prop.try_into_prop(env) {
             Ok(k) => k,
             Err(e) => {
@@ -31,7 +32,7 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
                 return;
             }
         };
-        let obj = obj_id_or_throw!(&env, self.obj, ());
+        let obj = obj_id_or_throw!(env, self.obj, ());
 
         match tx.put(obj, key, self.value) {
             Ok(_) => {}
@@ -45,7 +46,7 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setDoubleInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -53,7 +54,7 @@ pub unsafe extern "C" fn setDoubleInMap(
     value: jni::sys::jdouble,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -66,16 +67,17 @@ pub unsafe extern "C" fn setDoubleInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setBytesInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     key: JString,
     value: jbyteArray,
 ) {
+    let value = JPrimitiveArray::from_raw(value);
     let bytes = env.convert_byte_array(value).unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -88,16 +90,18 @@ pub unsafe extern "C" fn setBytesInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setStringInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
-    key: JString,
-    value: JString,
+    key: jstring,
+    value: jstring,
 ) {
-    let val: String = env.get_string(value).unwrap().into();
+    let key = JString::from_raw(key);
+    let value = JString::from_raw(value);
+    let val: String = env.get_string(&value).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -110,7 +114,7 @@ pub unsafe extern "C" fn setStringInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setIntInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -118,7 +122,7 @@ pub unsafe extern "C" fn setIntInMap(
     value: jint,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -131,7 +135,7 @@ pub unsafe extern "C" fn setIntInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setUintInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -139,7 +143,7 @@ pub unsafe extern "C" fn setUintInMap(
     value: jint,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -152,7 +156,7 @@ pub unsafe extern "C" fn setUintInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setBoolInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -160,7 +164,7 @@ pub unsafe extern "C" fn setBoolInMap(
     value: jboolean,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -173,14 +177,14 @@ pub unsafe extern "C" fn setBoolInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setNullInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     key: JString,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -193,7 +197,7 @@ pub unsafe extern "C" fn setNullInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setCounterInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -201,7 +205,7 @@ pub unsafe extern "C" fn setCounterInMap(
     value: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -214,7 +218,7 @@ pub unsafe extern "C" fn setCounterInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setDateInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -228,7 +232,7 @@ pub unsafe extern "C" fn setDateInMap(
         .j()
         .unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -241,7 +245,7 @@ pub unsafe extern "C" fn setDateInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setDoubleInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -249,7 +253,7 @@ pub unsafe extern "C" fn setDoubleInList(
     value: jni::sys::jdouble,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -262,7 +266,7 @@ pub unsafe extern "C" fn setDoubleInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setIntInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -270,7 +274,7 @@ pub unsafe extern "C" fn setIntInList(
     value: jint,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -283,7 +287,7 @@ pub unsafe extern "C" fn setIntInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setUintInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -291,7 +295,7 @@ pub unsafe extern "C" fn setUintInList(
     value: jint,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -304,16 +308,16 @@ pub unsafe extern "C" fn setUintInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setStringInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
-    value: JString,
+    value: jstring,
 ) {
-    let val: String = env.get_string(value).unwrap().into();
+    let val: String = env.get_string(&JString::from_raw(value)).unwrap().into();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -326,16 +330,17 @@ pub unsafe extern "C" fn setStringInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setBytesInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
     value: jbyteArray,
 ) {
-    let bytes = env.convert_byte_array(value).unwrap();
+    let value = JPrimitiveArray::from_raw(value);
+    let bytes = env.convert_byte_array(&value).unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -348,7 +353,7 @@ pub unsafe extern "C" fn setBytesInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setBoolInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -356,7 +361,7 @@ pub unsafe extern "C" fn setBoolInList(
     value: jboolean,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -369,7 +374,7 @@ pub unsafe extern "C" fn setBoolInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setDateInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -383,7 +388,7 @@ pub unsafe extern "C" fn setDateInList(
         .j()
         .unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -396,7 +401,7 @@ pub unsafe extern "C" fn setDateInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setCounterInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
@@ -404,7 +409,7 @@ pub unsafe extern "C" fn setCounterInList(
     value: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -417,14 +422,14 @@ pub unsafe extern "C" fn setCounterInList(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setNullInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
 ) {
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetOp {
             obj: obj_pointer,
@@ -443,8 +448,8 @@ struct SetObjOp {
 impl TransactionOp for SetObjOp {
     type Output = jobject;
 
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = obj_id_or_throw!(&env, self.obj);
+    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
+        let obj = obj_id_or_throw!(env, self.obj);
         let oid = match tx.put_object(obj, self.key, self.value) {
             Ok(oid) => oid,
             Err(e) => {
@@ -453,25 +458,26 @@ impl TransactionOp for SetObjOp {
             }
         };
         let jobjid = JavaObjId::from(oid);
-        jobjid.into_raw(&env).unwrap()
+        jobjid.into_raw(env).unwrap()
     }
 }
 
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setObjectInMap(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
-    key: JString,
+    key: jstring,
     value: jobject,
 ) -> jobject {
-    let obj_type = JavaObjType::from_java_enum(&env, value).unwrap();
-    let jstr = env.get_string(key).unwrap();
+    let obj_type = JavaObjType::from_java_enum(&mut env, value).unwrap();
+    let key = JString::from_raw(key);
+    let jstr = env.get_string(&key).unwrap();
     let key = jstr.to_str().unwrap();
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetObjOp {
             obj: obj_pointer,
@@ -484,14 +490,14 @@ pub unsafe extern "C" fn setObjectInMap(
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn setObjectInList(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jni::sys::jobject,
     obj_pointer: jni::sys::jobject,
     idx: jlong,
     value: jobject,
 ) -> jobject {
-    let obj_type = JavaObjType::from_java_enum(&env, value).unwrap();
+    let obj_type = JavaObjType::from_java_enum(&mut env, value).unwrap();
     let idx = match usize::try_from(idx) {
         Ok(idx) => idx,
         Err(_) => {
@@ -501,7 +507,7 @@ pub unsafe extern "C" fn setObjectInList(
         }
     };
     do_tx_op(
-        env,
+        &mut env,
         tx_pointer,
         SetObjOp {
             obj: obj_pointer,

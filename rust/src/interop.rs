@@ -1,8 +1,8 @@
 use am::PatchLog;
 use automerge::{self as am, transaction::Transaction, ChangeHash};
 use jni::{
-    objects::{JObject, JValue},
-    sys::jobject,
+    objects::{JObject, JObjectArray, JPrimitiveArray, JValue},
+    sys::{jbyteArray, jobject},
 };
 
 pub(crate) const CHANGEHASH_CLASS: &str = am_classname!("ChangeHash");
@@ -14,7 +14,7 @@ pub(crate) trait AsPointerObj: Sized {
     fn classname() -> &'static str;
 
     fn from_pointer_obj<'a>(
-        env: &jni::JNIEnv<'a>,
+        env: &mut jni::JNIEnv<'a>,
         obj: jobject,
     ) -> Result<&'a mut Self::EnvRef<'a>, errors::FromPointerObj> {
         let obj = unsafe { JObject::from_raw(obj) };
@@ -28,7 +28,7 @@ pub(crate) trait AsPointerObj: Sized {
     }
 
     fn owned_from_pointer_obj<'b>(
-        env: &jni::JNIEnv<'b>,
+        env: &mut jni::JNIEnv<'b>,
         obj: jobject,
     ) -> Result<Box<Self::EnvRef<'b>>, errors::FromPointerObj> {
         let obj = unsafe { JObject::from_raw(obj) };
@@ -41,7 +41,7 @@ pub(crate) trait AsPointerObj: Sized {
         Ok(result)
     }
 
-    fn to_pointer_obj(self, env: &jni::JNIEnv) -> Result<jobject, errors::ConstructPointerObj> {
+    fn to_pointer_obj(self, env: &mut jni::JNIEnv) -> Result<jobject, errors::ConstructPointerObj> {
         let boxed = Box::new(self);
         let ptr = JValue::from(Box::into_raw(boxed) as i64);
         let obj = env.alloc_object(Self::classname()).map_err(|e| {
@@ -50,7 +50,7 @@ pub(crate) trait AsPointerObj: Sized {
                 err: e,
             }
         })?;
-        env.set_field(obj, "pointer", "J", ptr).map_err(|e| {
+        env.set_field(&obj, "pointer", "J", ptr).map_err(|e| {
             errors::ConstructPointerObj::SetPointer {
                 classname: Self::classname(),
                 err: e,
@@ -114,38 +114,29 @@ pub(crate) mod errors {
 
 /// Given a pointer to an array of java ChangeHash objects, return a vector of ChangeHashes.
 pub(crate) unsafe fn heads_from_jobject(
-    env: &jni::JNIEnv,
-    heads_pointer: jobject,
+    env: &mut jni::JNIEnv,
+    heads_pointer: jbyteArray,
 ) -> Result<Vec<ChangeHash>, jni::errors::Error> {
-    let head_len = env.get_array_length(heads_pointer)?;
+    let heads_pointer = JObjectArray::from_raw(heads_pointer);
+    let head_len = env.get_array_length(&heads_pointer)?;
     let mut heads = Vec::with_capacity(head_len as usize);
     for i in 0..head_len {
-        let head_obj = env.get_object_array_element(heads_pointer, i).unwrap();
-        let head_bytes_ref = env.get_field(head_obj, "hash", "[B").unwrap().l().unwrap();
-        let head_bytes = env.convert_byte_array(head_bytes_ref.into_raw()).unwrap();
+        let head_obj = env.get_object_array_element(&heads_pointer, i).unwrap();
+        let head_bytes_ref =
+            JPrimitiveArray::from(env.get_field(head_obj, "hash", "[B").unwrap().l().unwrap());
+        let head_bytes = env.convert_byte_array(&head_bytes_ref).unwrap();
         heads.push(automerge::ChangeHash::try_from(head_bytes.as_slice()).unwrap());
     }
     Ok(heads)
 }
 
 pub(crate) unsafe fn changehash_to_jobject<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     hash: &ChangeHash,
 ) -> Result<JObject<'a>, jni::errors::Error> {
     let jhash = env.alloc_object(CHANGEHASH_CLASS)?;
-    let byte_array = JObject::from_raw(env.byte_array_from_slice(hash.as_ref())?);
-    env.set_field(jhash, "hash", "[B", byte_array.into())
+    let byte_array = env.byte_array_from_slice(hash.as_ref())?;
+    env.set_field(&jhash, "hash", "[B", (&byte_array).into())
         .unwrap();
     Ok(jhash)
-}
-
-/// Rust objects which can be converted to a java object
-pub(crate) trait ToJniObject {
-    fn to_jni_object<'a>(self, env: &jni::JNIEnv<'a>) -> Result<JObject<'a>, jni::errors::Error>;
-}
-
-impl ToJniObject for ChangeHash {
-    fn to_jni_object<'b>(self, env: &jni::JNIEnv<'b>) -> Result<JObject<'b>, jni::errors::Error> {
-        unsafe { changehash_to_jobject(env, &self) }
-    }
 }

@@ -18,7 +18,7 @@ const LIST_CLASS: &str = am_classname!("AmValue$List");
 const TEXT_CLASS: &str = am_classname!("AmValue$Text");
 
 pub(crate) unsafe fn to_optional_amvalue<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     val: Option<(automerge::Value, automerge::ObjId)>,
 ) -> Result<JObject<'a>, jni::errors::Error> {
     match val {
@@ -29,7 +29,7 @@ pub(crate) unsafe fn to_optional_amvalue<'a>(
                     "java/util/Optional",
                     "of",
                     "(Ljava/lang/Object;)Ljava/util/Optional;",
-                    &[val.into()],
+                    &[(&val).into()],
                 )?
                 .l()?;
             Ok(opt)
@@ -44,7 +44,7 @@ pub(crate) unsafe fn to_optional_amvalue<'a>(
 }
 
 pub(crate) unsafe fn to_amvalue<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     val: (automerge::Value, automerge::ObjId),
 ) -> Result<JObject<'a>, jni::errors::Error> {
     match val {
@@ -55,30 +55,30 @@ pub(crate) unsafe fn to_amvalue<'a>(
                 ObjType::Map | ObjType::Table => {
                     let amval = env.alloc_object(MAP_CLASS)?;
                     env.set_field(
-                        amval,
+                        &amval,
                         "id",
                         format!("L{};", am_classname!("ObjectId")),
-                        oid.into(),
+                        (&oid).into(),
                     )?;
                     Ok(amval)
                 }
                 ObjType::List => {
                     let amval = env.alloc_object(LIST_CLASS)?;
                     env.set_field(
-                        amval,
+                        &amval,
                         "id",
                         format!("L{};", am_classname!("ObjectId")),
-                        oid.into(),
+                        (&oid).into(),
                     )?;
                     Ok(amval)
                 }
                 ObjType::Text => {
                     let amval = env.alloc_object(TEXT_CLASS)?;
                     env.set_field(
-                        amval,
+                        &amval,
                         "id",
                         format!("L{};", am_classname!("ObjectId")),
-                        oid.into(),
+                        (&oid).into(),
                     )?;
                     Ok(amval)
                 }
@@ -88,45 +88,40 @@ pub(crate) unsafe fn to_amvalue<'a>(
 }
 
 pub(crate) fn scalar_to_amvalue<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     val: &am::ScalarValue,
 ) -> jni::errors::Result<JObject<'a>> {
     match val {
         am::ScalarValue::F64(v) => {
             let amval = env.alloc_object(FLOAT_CLASS)?;
-            env.set_field(amval, "value", "D", JValue::Double(*v))?;
+            env.set_field(&amval, "value", "D", JValue::Double(*v))?;
             Ok(amval)
         }
         am::ScalarValue::Bytes(v) => {
             let amval = env.alloc_object(BYTE_CLASS)?;
             let arr = env.byte_array_from_slice(v)?;
-            env.set_field(
-                amval,
-                "value",
-                "[B",
-                unsafe { JObject::from_raw(arr) }.into(),
-            )?;
+            env.set_field(&amval, "value", "[B", (&arr).into())?;
             Ok(amval)
         }
         am::ScalarValue::Str(s) => {
             let s = env.new_string(s.as_str())?;
             let amval = env.alloc_object(STR_CLASS)?;
-            env.set_field(amval, "value", "Ljava/lang/String;", s.into())?;
+            env.set_field(&amval, "value", "Ljava/lang/String;", (&s).into())?;
             Ok(amval)
         }
         am::ScalarValue::Int(i) => {
             let amval = env.alloc_object(INT_CLASS)?;
-            env.set_field(amval, "value", "J", JValue::Long(*i))?;
+            env.set_field(&amval, "value", "J", JValue::Long(*i))?;
             Ok(amval)
         }
         am::ScalarValue::Uint(i) => {
             let amval = env.alloc_object(UINT_CLASS)?;
-            env.set_field(amval, "value", "J", JValue::Long(*i as i64))?;
+            env.set_field(&amval, "value", "J", JValue::Long(*i as i64))?;
             Ok(amval)
         }
         am::ScalarValue::Boolean(val) => {
             let amval = env.alloc_object(BOOL_CLASS)?;
-            env.set_field(amval, "value", "Z", JValue::Bool(*val as u8))?;
+            env.set_field(&amval, "value", "Z", JValue::Bool(*val as u8))?;
             Ok(amval)
         }
         am::ScalarValue::Null => {
@@ -138,10 +133,10 @@ pub(crate) fn scalar_to_amvalue<'a>(
             let counter_obj =
                 env.new_object(am_classname!("Counter"), "(J)V", &[i64::from(c).into()])?;
             env.set_field(
-                amval,
+                &amval,
                 "value",
                 format!("L{};", am_classname!("Counter")),
-                counter_obj.into(),
+                (&counter_obj).into(),
             )?;
             Ok(amval)
         }
@@ -149,19 +144,14 @@ pub(crate) fn scalar_to_amvalue<'a>(
             let t = JValue::Long(*t);
             let date_obj = env.new_object("java/util/Date", "(J)V", &[t]).unwrap();
             let amval = env.alloc_object(TIMESTAMP_CLASS)?;
-            env.set_field(amval, "value", "Ljava/util/Date;", date_obj.into())?;
+            env.set_field(&amval, "value", "Ljava/util/Date;", (&date_obj).into())?;
             Ok(amval)
         }
         am::ScalarValue::Unknown { type_code, bytes } => {
             let amval = env.alloc_object(UNKNOWN_CLASS)?;
             let arr = env.byte_array_from_slice(bytes)?;
-            env.set_field(
-                amval,
-                "value",
-                "[B",
-                unsafe { JObject::from_raw(arr) }.into(),
-            )?;
-            env.set_field(amval, "typeCode", "I", JValue::Int(*type_code as i32))?;
+            env.set_field(&amval, "value", "[B", (&arr).into())?;
+            env.set_field(&amval, "typeCode", "I", JValue::Int(*type_code as i32))?;
             Ok(amval)
         }
     }

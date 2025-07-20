@@ -6,7 +6,7 @@ use crate::am_value;
 pub(crate) const MARK_CLASSNAME: &str = am_classname!("Mark");
 
 pub(crate) fn mark_to_java<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     mark: &am::marks::Mark,
 ) -> jni::errors::Result<JObject<'a>> {
     let mark_class = env.find_class(MARK_CLASSNAME)?;
@@ -19,8 +19,8 @@ pub(crate) fn mark_to_java<'a>(
         &[
             (mark.start as i64).into(),
             (mark.end as i64).into(),
-            name.into(),
-            value.into(),
+            (&name).into(),
+            (&value).into(),
         ],
     )
 }

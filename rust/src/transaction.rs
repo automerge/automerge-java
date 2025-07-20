@@ -18,25 +18,37 @@ mod splice_text;
 
 trait TransactionOp {
     type Output;
-    unsafe fn execute<T: Transactable>(self, env: jni::JNIEnv, tx: &mut T) -> Self::Output;
+    unsafe fn execute<'a, 'b, T: Transactable>(
+        self,
+        env: &'a mut jni::JNIEnv<'b>,
+        tx: &mut T,
+    ) -> Self::Output;
 }
 
 trait OwnedTransactionOp {
     type Output;
-    unsafe fn execute(self, env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output;
+    unsafe fn execute(
+        self,
+        env: &mut jni::JNIEnv,
+        tx: am::transaction::Transaction,
+    ) -> Self::Output;
 }
 
-unsafe fn do_tx_op<Op: TransactionOp>(env: jni::JNIEnv, tx_pointer: jobject, op: Op) -> Op::Output {
-    let tx = am::transaction::Transaction::from_pointer_obj(&env, tx_pointer).unwrap();
+unsafe fn do_tx_op<Op: TransactionOp>(
+    env: &mut jni::JNIEnv,
+    tx_pointer: jobject,
+    op: Op,
+) -> Op::Output {
+    let tx = am::transaction::Transaction::from_pointer_obj(env, tx_pointer).unwrap();
     op.execute(env, tx)
 }
 
 unsafe fn do_owned_tx_op<Op: OwnedTransactionOp>(
-    env: jni::JNIEnv,
+    env: &mut jni::JNIEnv,
     tx_pointer: jobject,
     op: Op,
 ) -> Op::Output {
-    let tx = am::transaction::Transaction::owned_from_pointer_obj(&env, tx_pointer).unwrap();
+    let tx = am::transaction::Transaction::owned_from_pointer_obj(env, tx_pointer).unwrap();
     op.execute(env, *tx)
 }
 
@@ -47,21 +59,25 @@ pub(crate) const COMMITRESULT_CLASS: &str = am_classname!("CommitResult");
 impl OwnedTransactionOp for Commit {
     type Output = jobject;
 
-    unsafe fn execute(self, env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output {
+    unsafe fn execute(
+        self,
+        env: &mut jni::JNIEnv,
+        tx: am::transaction::Transaction,
+    ) -> Self::Output {
         let (hash, patches) = tx.commit();
         let hash_jobject = hash
             .map(|h| {
-                let hash_jobj = changehash_to_jobject(&env, &h)?;
-                make_optional(&env, hash_jobj.into())
+                let hash_jobj = changehash_to_jobject(env, &h)?;
+                make_optional(env, (&hash_jobj).into())
             })
-            .unwrap_or_else(|| make_empty_option(&env))
+            .unwrap_or_else(|| make_empty_option(env))
             .unwrap();
-        let patches_jobject = JObject::from_raw(patches.to_pointer_obj(&env).unwrap());
+        let patches_jobject = JObject::from_raw(patches.to_pointer_obj(env).unwrap());
         let commit_result = env
             .new_object(
                 COMMITRESULT_CLASS,
                 format!("(Ljava/util/Optional;L{};)V", am::PatchLog::classname()),
-                &[hash_jobject.into(), patches_jobject.into()],
+                &[(&hash_jobject).into(), (&patches_jobject).into()],
             )
             .unwrap();
         commit_result.into_raw()
@@ -70,11 +86,11 @@ impl OwnedTransactionOp for Commit {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn commitTransaction(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jobject,
 ) -> jobject {
-    do_owned_tx_op(env, tx_pointer, Commit)
+    do_owned_tx_op(&mut env, tx_pointer, Commit)
 }
 
 struct Rollback;
@@ -82,7 +98,11 @@ struct Rollback;
 impl OwnedTransactionOp for Rollback {
     type Output = ();
 
-    unsafe fn execute(self, _env: jni::JNIEnv, tx: am::transaction::Transaction) -> Self::Output {
+    unsafe fn execute(
+        self,
+        _env: &mut jni::JNIEnv,
+        tx: am::transaction::Transaction,
+    ) -> Self::Output {
         tx.rollback();
     }
 }
@@ -90,11 +110,11 @@ impl OwnedTransactionOp for Rollback {
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn rollbackTransaction(
-    env: jni::JNIEnv,
+    mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     tx_pointer: jobject,
 ) {
-    do_owned_tx_op(env, tx_pointer, Rollback);
+    do_owned_tx_op(&mut env, tx_pointer, Rollback);
 }
 
 #[derive(Debug, thiserror::Error)]

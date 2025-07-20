@@ -9,7 +9,7 @@ const BOTH_ORDINAL: i32 = 2;
 const NONE_ORDINAL: i32 = 3;
 
 pub(crate) fn from_java<'a>(
-    env: &jni::JNIEnv<'a>,
+    env: &mut jni::JNIEnv<'a>,
     obj: JObject<'a>,
 ) -> Result<ExpandMark, FromJavaError> {
     let val = env.call_method(obj, "ordinal", "()I", &[])?.i()?;
