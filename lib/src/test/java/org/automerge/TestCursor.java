@@ -77,9 +77,8 @@ public final class TestCursor {
 		byte[] encoded = cursor.toBytes();
 		Cursor decoded = Cursor.fromBytes(encoded);
 		Assertions.assertEquals(doc.lookupCursorIndex(text, decoded), 3);
-
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			Cursor.fromBytes(new byte[]{0x01, 0x01});
+			Cursor.fromBytes(new byte[]{0x11, 0x01});
 		});
 	}
 }
