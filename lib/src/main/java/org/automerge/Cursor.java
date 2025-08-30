@@ -17,57 +17,57 @@ package org.automerge;
  * important you should use the string methods.
  */
 public class Cursor {
-	private byte[] raw;
+    private byte[] raw;
 
-	/**
-	 * Parse the output of {@link toBytes()}
-	 *
-	 * @param encoded
-	 *            the output of {@link toBytes()}
-	 *
-	 * @throws IllegalArgumentException
-	 *             if the input is not a valid cursor
-	 *
-	 * @return the parsed cursor
-	 */
-	public static Cursor fromBytes(byte[] encoded) {
-		return AutomergeSys.cursorFromBytes(encoded);
-	}
+    /**
+     * Parse the output of {@link toBytes()}
+     *
+     * @param encoded
+     *            the output of {@link toBytes()}
+     *
+     * @throws IllegalArgumentException
+     *             if the input is not a valid cursor
+     *
+     * @return the parsed cursor
+     */
+    public static Cursor fromBytes(byte[] encoded) {
+        return AutomergeSys.cursorFromBytes(encoded);
+    }
 
-	/**
-	 * Parse the output of {@link toString()}
-	 *
-	 * @param encoded
-	 *            the output of {@link toString()}
-	 *
-	 * @throws IllegalArgumentException
-	 *             if the input is not a valid cursor
-	 *
-	 * @return the parsed cursor
-	 */
-	public static Cursor fromString(String encoded) {
-		return AutomergeSys.cursorFromString(encoded);
-	}
+    /**
+     * Parse the output of {@link toString()}
+     *
+     * @param encoded
+     *            the output of {@link toString()}
+     *
+     * @throws IllegalArgumentException
+     *             if the input is not a valid cursor
+     *
+     * @return the parsed cursor
+     */
+    public static Cursor fromString(String encoded) {
+        return AutomergeSys.cursorFromString(encoded);
+    }
 
-	/**
-	 * Encode a cursor as a string
-	 * <p>
-	 * This encoding is interoperable with cursors produced by the JavaScript
-	 * implementation.
-	 *
-	 * @return the encoded cursor
-	 */
-	@Override
-	public String toString() {
-		return AutomergeSys.cursorToString(this);
-	}
+    /**
+     * Encode a cursor as a string
+     * <p>
+     * This encoding is interoperable with cursors produced by the JavaScript
+     * implementation.
+     *
+     * @return the encoded cursor
+     */
+    @Override
+    public String toString() {
+        return AutomergeSys.cursorToString(this);
+    }
 
-	/**
-	 * Encode a cursor as a byte array
-	 *
-	 * @return the encoded cursor
-	 */
-	public byte[] toBytes() {
-		return raw.clone();
-	}
+    /**
+     * Encode a cursor as a byte array
+     *
+     * @return the encoded cursor
+     */
+    public byte[] toBytes() {
+        return raw.clone();
+    }
 }

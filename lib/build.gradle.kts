@@ -66,7 +66,7 @@ spotless {
         targetExclude("src/templates/*", "build/generated/java/BuildInfo.java")
         removeUnusedImports()
         cleanthat()
-        eclipse()
+        eclipse().configFile("${project.rootDir}/spotless.eclipseformat.xml")
         formatAnnotations()
     }
 }

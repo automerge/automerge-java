@@ -16,191 +16,191 @@ import java.util.Date;
  */
 public abstract class AmValue {
 
-	/** An unsigned integer */
-	public static class UInt extends AmValue {
-		private long value;
+    /** An unsigned integer */
+    public static class UInt extends AmValue {
+        private long value;
 
-		public long getValue() {
-			return value;
-		}
+        public long getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "UInt [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "UInt [value=" + value + "]";
+        }
+    }
 
-	/** A 64bit integer */
-	public static class Int extends AmValue {
-		private long value;
+    /** A 64bit integer */
+    public static class Int extends AmValue {
+        private long value;
 
-		public long getValue() {
-			return value;
-		}
+        public long getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Int [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Int [value=" + value + "]";
+        }
+    }
 
-	/** A Boolean */
-	public static class Bool extends AmValue {
-		private boolean value;
+    /** A Boolean */
+    public static class Bool extends AmValue {
+        private boolean value;
 
-		public boolean getValue() {
-			return value;
-		}
+        public boolean getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Bool [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Bool [value=" + value + "]";
+        }
+    }
 
-	/** A byte array */
-	public static class Bytes extends AmValue {
-		private byte[] value;
+    /** A byte array */
+    public static class Bytes extends AmValue {
+        private byte[] value;
 
-		public byte[] getValue() {
-			return value;
-		}
+        public byte[] getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Bytes [value=" + Arrays.toString(value) + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Bytes [value=" + Arrays.toString(value) + "]";
+        }
+    }
 
-	/** A string */
-	public static class Str extends AmValue {
-		private String value;
+    /** A string */
+    public static class Str extends AmValue {
+        private String value;
 
-		public String getValue() {
-			return value;
-		}
+        public String getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Str [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Str [value=" + value + "]";
+        }
+    }
 
-	/** A 64 bit floating point number */
-	public static class F64 extends AmValue {
-		private double value;
+    /** A 64 bit floating point number */
+    public static class F64 extends AmValue {
+        private double value;
 
-		public double getValue() {
-			return value;
-		}
+        public double getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "F64 [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "F64 [value=" + value + "]";
+        }
+    }
 
-	/** A counter */
-	public static class Counter extends AmValue {
-		private org.automerge.Counter value;
+    /** A counter */
+    public static class Counter extends AmValue {
+        private org.automerge.Counter value;
 
-		public long getValue() {
-			return value.getValue();
-		}
+        public long getValue() {
+            return value.getValue();
+        }
 
-		@Override
-		public String toString() {
-			return "Counter [value=" + value.getValue() + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Counter [value=" + value.getValue() + "]";
+        }
+    }
 
-	/** A timestamp */
-	public static class Timestamp extends AmValue {
-		private Date value;
+    /** A timestamp */
+    public static class Timestamp extends AmValue {
+        private Date value;
 
-		public Date getValue() {
-			return value;
-		}
+        public Date getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Timestamp [value=" + value + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Timestamp [value=" + value + "]";
+        }
+    }
 
-	/** A null value */
-	public static class Null extends AmValue {
+    /** A null value */
+    public static class Null extends AmValue {
 
-		@Override
-		public String toString() {
-			return "Null";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Null";
+        }
+    }
 
-	/**
-	 * An unknown value
-	 *
-	 * <p>
-	 * This is used to represent values which may be added by future versions of
-	 * automerge.
-	 */
-	public static class Unknown extends AmValue {
-		private int typeCode;
-		private byte[] value;
+    /**
+     * An unknown value
+     *
+     * <p>
+     * This is used to represent values which may be added by future versions of
+     * automerge.
+     */
+    public static class Unknown extends AmValue {
+        private int typeCode;
+        private byte[] value;
 
-		public int getTypeCode() {
-			return typeCode;
-		}
+        public int getTypeCode() {
+            return typeCode;
+        }
 
-		public byte[] getValue() {
-			return value;
-		}
+        public byte[] getValue() {
+            return value;
+        }
 
-		@Override
-		public String toString() {
-			return "Unknown [typeCode=" + typeCode + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Unknown [typeCode=" + typeCode + "]";
+        }
+    }
 
-	/** A map object */
-	public static class Map extends AmValue {
-		private ObjectId id;
+    /** A map object */
+    public static class Map extends AmValue {
+        private ObjectId id;
 
-		public ObjectId getId() {
-			return id;
-		}
+        public ObjectId getId() {
+            return id;
+        }
 
-		@Override
-		public String toString() {
-			return "Map [id=" + id + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Map [id=" + id + "]";
+        }
+    }
 
-	/** A list object */
-	public static class List extends AmValue {
-		private ObjectId id;
+    /** A list object */
+    public static class List extends AmValue {
+        private ObjectId id;
 
-		public ObjectId getId() {
-			return id;
-		}
+        public ObjectId getId() {
+            return id;
+        }
 
-		@Override
-		public String toString() {
-			return "List [id=" + id + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "List [id=" + id + "]";
+        }
+    }
 
-	/** A text object */
-	public static class Text extends AmValue {
-		private ObjectId id;
+    /** A text object */
+    public static class Text extends AmValue {
+        private ObjectId id;
 
-		public ObjectId getId() {
-			return id;
-		}
+        public ObjectId getId() {
+            return id;
+        }
 
-		@Override
-		public String toString() {
-			return "Text [id=" + id + "]";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Text [id=" + id + "]";
+        }
+    }
 }

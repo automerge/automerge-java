@@ -9,40 +9,40 @@ package org.automerge;
  * object in automerge is a map, the ID of whic his {@link ObjectId#ROOT}.
  */
 public class ObjectId {
-	private byte[] raw;
+    private byte[] raw;
 
-	public static ObjectId ROOT;
+    public static ObjectId ROOT;
 
-	static {
-		ROOT = AutomergeSys.rootObjectId();
-	}
+    static {
+        ROOT = AutomergeSys.rootObjectId();
+    }
 
-	private ObjectId(byte[] raw) {
-		this.raw = raw;
-	}
+    private ObjectId(byte[] raw) {
+        this.raw = raw;
+    }
 
-	public boolean isRoot() {
-		return AutomergeSys.isRootObjectId(this);
-	}
+    public boolean isRoot() {
+        return AutomergeSys.isRootObjectId(this);
+    }
 
-	public String toString() {
-		return AutomergeSys.objectIdToString(this);
-	}
+    public String toString() {
+        return AutomergeSys.objectIdToString(this);
+    }
 
-	@Override
-	public int hashCode() {
-		return AutomergeSys.objectIdHash(this);
-	}
+    @Override
+    public int hashCode() {
+        return AutomergeSys.objectIdHash(this);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ObjectId other = (ObjectId) obj;
-		return AutomergeSys.objectIdsEqual(this, other);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ObjectId other = (ObjectId) obj;
+        return AutomergeSys.objectIdsEqual(this, other);
+    }
 }
