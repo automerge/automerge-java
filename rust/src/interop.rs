@@ -134,10 +134,10 @@ pub(crate) unsafe fn heads_from_jobject(
     Ok(heads)
 }
 
-pub(crate) unsafe fn changehash_to_jobject<'a>(
-    env: &mut jni::JNIEnv<'a>,
+pub(crate) fn changehash_to_jobject<'local>(
+    env: &mut jni::JNIEnv<'local>,
     hash: &ChangeHash,
-) -> Result<JObject<'a>, jni::errors::Error> {
+) -> Result<JObject<'local>, jni::errors::Error> {
     let jhash = env.alloc_object(CHANGEHASH_CLASS)?;
     let byte_array = env.byte_array_from_slice(hash.as_ref())?;
     env.set_field(&jhash, "hash", "[B", (&byte_array).into())

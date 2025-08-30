@@ -83,16 +83,14 @@ pub unsafe extern "C" fn cursorFromString(
         env.throw_new(
             "java/lang/IllegalArgumentException",
             "invalid cursor string",
-        )
-        .unwrap();
+        );
         return JObject::null().into_raw();
     };
     let Ok(cursor) = automerge::Cursor::try_from(s) else {
         env.throw_new(
             "java/lang/IllegalArgumentException",
             "invalid cursor string",
-        )
-        .unwrap();
+        );
         return JObject::null().into_raw();
     };
     Cursor::from(cursor).into_raw(&mut env).unwrap()
@@ -109,8 +107,7 @@ pub unsafe extern "C" fn cursorFromBytes(
     let bytes = env.convert_byte_array(&jarr).unwrap();
     let Ok(cursor) = automerge::Cursor::try_from(bytes) else {
         // throw IllegalArgumentException
-        env.throw_new("java/lang/IllegalArgumentException", "invalid cursor bytes")
-            .unwrap();
+        env.throw_new("java/lang/IllegalArgumentException", "invalid cursor bytes");
         return JObject::null().into_raw();
     };
     Cursor::from(cursor).into_raw(&mut env).unwrap()

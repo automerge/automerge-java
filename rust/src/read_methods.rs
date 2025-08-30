@@ -35,7 +35,7 @@ macro_rules! catch {
         match $e {
             Ok(r) => r,
             Err(e) => {
-                $env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                $env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         }
@@ -127,7 +127,7 @@ impl SomeReadPointer {
             Ok(Some(c)) => make_optional(&mut env, (&c).into()).unwrap().into_raw(),
             Ok(None) => make_empty_option(&mut env).unwrap().into_raw(),
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 JObject::null().into_raw()
             }
         }
@@ -164,7 +164,7 @@ impl SomeReadPointer {
             },
             Ok(_) => return make_empty_option(env).unwrap().into_raw(),
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -215,7 +215,7 @@ impl SomeReadPointer {
                 return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -258,7 +258,7 @@ impl SomeReadPointer {
                 return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -314,7 +314,7 @@ impl SomeReadPointer {
                 return make_empty_option(&mut env).unwrap().into_raw()
             }
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -340,7 +340,7 @@ impl SomeReadPointer {
         let marks = match marks {
             Ok(m) => m,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -376,7 +376,7 @@ impl SomeReadPointer {
         let marks = match marks {
             Ok(m) => m,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -406,15 +406,14 @@ impl SomeReadPointer {
         let heads = maybe_heads(&mut env, maybe_heads_pointer).unwrap();
         let read = SomeRead::from_pointer(&mut env, self);
         if index < 0 {
-            env.throw_new(AUTOMERGE_EXCEPTION, "Index must be >= 0")
-                .unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, "Index must be >= 0");
             return JObject::null().into_raw();
         }
         let cursor = read.get_cursor(obj, index as usize, heads.as_deref());
         let cursor = match cursor {
             Ok(c) => c,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -437,7 +436,7 @@ impl SomeReadPointer {
         let index = match index {
             Ok(i) => i,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return 0;
             }
         };
@@ -453,7 +452,7 @@ impl SomeReadPointer {
                 return make_empty_option(&mut env).unwrap().into_raw();
             }
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
