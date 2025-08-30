@@ -100,7 +100,7 @@ pub unsafe extern "C" fn loadDoc(
     let doc = match automerge::Automerge::load(&bytes) {
         Ok(d) => d,
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             return JObject::null().into_raw();
         }
     };
@@ -194,7 +194,7 @@ pub unsafe fn do_fork_at(
     let doc = match doc.fork_at(&heads) {
         Ok(d) => d,
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             return JObject::null().into_raw();
         }
     };
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn mergeDoc(
     match doc1.merge(other_doc) {
         Ok(_) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
         }
     }
 }
@@ -239,7 +239,7 @@ pub unsafe extern "C" fn mergeDocLogPatches(
     match doc1.merge_and_log_patches(other_doc, patch_log) {
         Ok(_) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
         }
     }
 }
@@ -275,7 +275,7 @@ pub unsafe extern "C" fn applyEncodedChanges(
     match doc.load_incremental(&changes_bytes) {
         Ok(_) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
         }
     };
 }
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn applyEncodedChangesLogPatches(
     match doc.load_incremental_log_patches(&changes_bytes, patchlog) {
         Ok(_) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
         }
     };
 }
