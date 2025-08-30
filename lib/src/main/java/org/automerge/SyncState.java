@@ -29,6 +29,10 @@ import java.util.Set;
 public class SyncState {
     private Optional<AutomergeSys.SyncStatePointer> pointer;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     private SyncState(AutomergeSys.SyncStatePointer pointer) {
         this.pointer = Optional.of(pointer);
     }

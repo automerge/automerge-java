@@ -8,6 +8,10 @@ import org.automerge.AutomergeSys.PatchLogPointer;
 public class PatchLog {
     private Optional<PatchLogPointer> pointer;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     public PatchLog() {
         pointer = Optional.of(AutomergeSys.createPatchLog());
     }
