@@ -1,6 +1,5 @@
 use std::ops::RangeBounds;
 
-use am::iter::{ListRangeItem, MapRangeItem};
 use am::ReadDoc;
 use jni::objects::JObject;
 use jni::sys::{jint, jlong, jobject};
@@ -228,8 +227,9 @@ impl SomeReadPointer {
                 JObject::null(),
             )
             .unwrap();
-        for (idx, ListRangeItem { value, id, .. }) in items.into_iter().enumerate() {
-            let val = to_amvalue(&mut env, (value, id)).unwrap();
+        for (idx, item) in items.into_iter().enumerate() {
+            let id = item.id();
+            let val = to_amvalue(&mut env, (item.value.into_value(), id)).unwrap();
             env.set_object_array_element(&jitems, idx as i32, val)
                 .unwrap();
         }
@@ -269,16 +269,17 @@ impl SomeReadPointer {
                 JObject::null(),
             )
             .unwrap();
-        for (i, MapRangeItem { key, value, id, .. }) in entries.into_iter().enumerate() {
+        for (i, item) in entries.into_iter().enumerate() {
+            let id = item.id();
             let entry = env.alloc_object(am_classname!("MapEntry")).unwrap();
             env.set_field(
                 &entry,
                 "key",
                 "Ljava/lang/String;",
-                (&env.new_string(key).unwrap()).into(),
+                (&env.new_string(item.key).unwrap()).into(),
             )
             .unwrap();
-            let am_val = to_amvalue(&mut env, (value, id)).unwrap();
+            let am_val = to_amvalue(&mut env, (item.value.into_value(), id)).unwrap();
             env.set_field(
                 &entry,
                 "value",
@@ -580,7 +581,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         &'b self,
         obj: O,
         range: R,
-    ) -> am::iter::MapRange<'b, R> {
+    ) -> am::iter::MapRange<'b> {
         match self {
             SomeRead::Transaction(tx) => tx.map_range(obj, range),
             SomeRead::Doc(doc) => doc.map_range(obj, range),
@@ -592,7 +593,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         obj: O,
         range: R,
         heads: &[am::ChangeHash],
-    ) -> am::iter::MapRange<'b, R> {
+    ) -> am::iter::MapRange<'b> {
         match self {
             SomeRead::Transaction(tx) => tx.map_range_at(obj, range, heads),
             SomeRead::Doc(doc) => doc.map_range_at(obj, range, heads),
@@ -603,7 +604,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         &self,
         obj: O,
         range: R,
-    ) -> am::iter::ListRange<'_, R> {
+    ) -> am::iter::ListRange<'_> {
         match self {
             SomeRead::Transaction(tx) => tx.list_range(obj, range),
             SomeRead::Doc(doc) => doc.list_range(obj, range),
@@ -615,7 +616,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         obj: O,
         range: R,
         heads: &[am::ChangeHash],
-    ) -> am::iter::ListRange<'_, R> {
+    ) -> am::iter::ListRange<'_> {
         match self {
             SomeRead::Transaction(tx) => tx.list_range_at(obj, range, heads),
             SomeRead::Doc(doc) => doc.list_range_at(obj, range, heads),
@@ -697,7 +698,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
         }
     }
 
-    fn get_change_by_hash(&self, hash: &am::ChangeHash) -> Option<&am::Change> {
+    fn get_change_by_hash(&self, hash: &am::ChangeHash) -> Option<am::Change> {
         match self {
             SomeRead::Transaction(tx) => tx.get_change_by_hash(hash),
             SomeRead::Doc(doc) => doc.get_change_by_hash(hash),
@@ -707,7 +708,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
     fn marks<O: AsRef<am::ObjId>>(
         &self,
         obj: O,
-    ) -> Result<Vec<am::marks::Mark<'_>>, am::AutomergeError> {
+    ) -> Result<Vec<am::marks::Mark>, am::AutomergeError> {
         match self {
             SomeRead::Transaction(tx) => tx.marks(obj),
             SomeRead::Doc(doc) => doc.marks(obj),
@@ -718,17 +719,17 @@ impl<'a> ReadDoc for SomeRead<'a> {
         &self,
         obj: O,
         heads: &[am::ChangeHash],
-    ) -> Result<Vec<am::marks::Mark<'_>>, am::AutomergeError> {
+    ) -> Result<Vec<am::marks::Mark>, am::AutomergeError> {
         match self {
             SomeRead::Transaction(tx) => tx.marks_at(obj, heads),
             SomeRead::Doc(doc) => doc.marks_at(obj, heads),
         }
     }
 
-    fn get_cursor<O: AsRef<am::ObjId>>(
+    fn get_cursor<O: AsRef<am::ObjId>, I: Into<am::CursorPosition>>(
         &self,
         obj: O,
-        position: usize,
+        position: I,
         at: Option<&[am::ChangeHash]>,
     ) -> Result<am::Cursor, am::AutomergeError> {
         match self {
@@ -758,6 +759,76 @@ impl<'a> ReadDoc for SomeRead<'a> {
         match self {
             SomeRead::Transaction(tx) => tx.get_marks(obj, index, heads),
             SomeRead::Doc(doc) => doc.get_marks(obj, index, heads),
+        }
+    }
+
+    fn iter_at<O: AsRef<automerge::ObjId>>(
+        &self,
+        obj: O,
+        heads: Option<&[automerge::ChangeHash]>,
+    ) -> automerge::iter::DocIter<'_> {
+        match self {
+            SomeRead::Transaction(tx) => tx.iter_at(obj, heads),
+            SomeRead::Doc(doc) => doc.iter_at(obj, heads),
+        }
+    }
+
+    fn spans<O: AsRef<automerge::ObjId>>(
+        &self,
+        obj: O,
+    ) -> Result<automerge::iter::Spans<'_>, automerge::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.spans(obj),
+            SomeRead::Doc(doc) => doc.spans(obj),
+        }
+    }
+
+    fn spans_at<O: AsRef<automerge::ObjId>>(
+        &self,
+        obj: O,
+        heads: &[automerge::ChangeHash],
+    ) -> Result<automerge::iter::Spans<'_>, automerge::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.spans_at(obj, heads),
+            SomeRead::Doc(doc) => doc.spans_at(obj, heads),
+        }
+    }
+
+    fn get_cursor_moving<O: AsRef<automerge::ObjId>, I: Into<automerge::CursorPosition>>(
+        &self,
+        obj: O,
+        position: I,
+        at: Option<&[automerge::ChangeHash]>,
+        move_cursor: automerge::MoveCursor,
+    ) -> Result<automerge::Cursor, automerge::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.get_cursor_moving(obj, position, at, move_cursor),
+            SomeRead::Doc(doc) => doc.get_cursor_moving(obj, position, at, move_cursor),
+        }
+    }
+
+    fn hydrate<O: AsRef<automerge::ObjId>>(
+        &self,
+        obj: O,
+        heads: Option<&[automerge::ChangeHash]>,
+    ) -> Result<automerge::hydrate::Value, automerge::AutomergeError> {
+        match self {
+            SomeRead::Transaction(tx) => tx.hydrate(obj, heads),
+            SomeRead::Doc(doc) => ReadDoc::hydrate(*doc, obj, heads),
+        }
+    }
+
+    fn stats(&self) -> automerge::Stats {
+        match self {
+            SomeRead::Transaction(tx) => tx.stats(),
+            SomeRead::Doc(doc) => doc.stats(),
+        }
+    }
+
+    fn text_encoding(&self) -> automerge::TextEncoding {
+        match self {
+            SomeRead::Transaction(tx) => tx.text_encoding(),
+            SomeRead::Doc(doc) => doc.text_encoding(),
         }
     }
 }

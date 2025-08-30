@@ -10,7 +10,7 @@ pub unsafe extern "C" fn createPatchLog(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
 ) -> jobject {
-    let patch_log = am::PatchLog::new(true, am::patches::TextRepresentation::String);
+    let patch_log = am::PatchLog::new(true);
     patch_log.to_pointer_obj(&mut env).unwrap()
 }
 

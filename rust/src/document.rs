@@ -1,4 +1,4 @@
-use automerge::{patches::TextRepresentation, ActorId, Automerge, PatchLog};
+use automerge::{ActorId, Automerge, PatchLog};
 use automerge_jni_macros::jni_fn;
 use jni::{
     objects::{JObject, JPrimitiveArray},
@@ -326,6 +326,6 @@ pub unsafe extern "C" fn diff(
     let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
     let before = heads_from_jobject(&mut env, before_heads_pointer).unwrap();
     let after = heads_from_jobject(&mut env, after_heads_pointer).unwrap();
-    let patches = doc.diff(&before, &after, TextRepresentation::String);
+    let patches = doc.diff(&before, &after);
     to_patch_arraylist(&mut env, patches).unwrap().into_raw()
 }
