@@ -12,6 +12,10 @@ public class TransactionImpl implements Transaction {
     private Document doc;
     private Optional<Consumer<AutomergeSys.PatchLogPointer>> finish;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     protected TransactionImpl(Document doc, AutomergeSys.TransactionPointer pointer) {
         this.pointer = Optional.of(pointer);
         this.doc = doc;

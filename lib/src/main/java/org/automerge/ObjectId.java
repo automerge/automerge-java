@@ -11,6 +11,10 @@ package org.automerge;
 public class ObjectId {
     private byte[] raw;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     public static ObjectId ROOT;
 
     static {

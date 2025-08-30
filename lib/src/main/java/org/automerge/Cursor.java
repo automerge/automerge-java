@@ -19,6 +19,10 @@ package org.automerge;
 public class Cursor {
     private byte[] raw;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     /**
      * Parse the output of {@link toBytes()}
      *

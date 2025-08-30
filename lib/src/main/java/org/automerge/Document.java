@@ -68,6 +68,10 @@ import org.automerge.AutomergeSys.DocPointer;
  * many times it may be worth reusing actor IDs.
  */
 public class Document implements Read {
+    static {
+        LoadLibrary.initialize();
+    }
+
     private Optional<DocPointer> pointer;
     // Keep actor ID here so we a) don't have to keep passing it across the JNI
     // boundary and b) can access it when a transaction is in progress
@@ -80,7 +84,6 @@ public class Document implements Read {
 
     /** Create a new document with a random actor ID */
     public Document() {
-        LoadLibrary.initialize();
         this.pointer = Optional.of(AutomergeSys.createDoc());
         this.actorId = AutomergeSys.getActorId(this.pointer.get());
         this.transactionPtr = Optional.empty();
@@ -93,14 +96,12 @@ public class Document implements Read {
      *            the actor ID to use for this document
      */
     public Document(byte[] actorId) {
-        LoadLibrary.initialize();
         this.actorId = actorId;
         this.pointer = Optional.of(AutomergeSys.createDocWithActor(actorId));
         this.transactionPtr = Optional.empty();
     }
 
     private Document(DocPointer pointer) {
-        LoadLibrary.initialize();
         this.pointer = Optional.of(pointer);
         this.actorId = AutomergeSys.getActorId(this.pointer.get());
         this.transactionPtr = Optional.empty();

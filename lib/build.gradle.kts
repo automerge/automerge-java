@@ -99,6 +99,86 @@ testing {
     }
 }
 
+// Register the custom linter task that checks for LoadLibrary.initialize() in static blocks
+val checkLoadLibraryInitializer = tasks.register("checkLoadLibraryInitializer") {
+    description = "Checks that all classes calling AutomergeSys have LoadLibrary.initialize() in static block"
+    group = "verification"
+
+    // Make the task depend on Java source files
+    inputs.files(fileTree("src/main/java") {
+        include("**/*.java")
+    })
+
+    doLast {
+        val violations = mutableListOf<String>()
+        val exemptClasses = listOf("AutomergeSys.java", "LoadLibrary.java")
+
+        fileTree("src/main/java") {
+            include("**/*.java")
+        }.forEach { file ->
+            val fileName = file.name
+
+            // Skip exempt classes
+            if (fileName in exemptClasses) {
+                return@forEach
+            }
+
+            val content = file.readText()
+
+            // Check if file calls AutomergeSys
+            // Use simple contains() since we're just looking for the class name followed by a dot
+            val callsAutomergeSys = content.contains("AutomergeSys.")
+
+            if (callsAutomergeSys) {
+                // Check if it has the static initializer with LoadLibrary.initialize()
+                // Look for the pattern: static { ... LoadLibrary.initialize() ... }
+                val hasStaticInit = Regex("""static\s*\{[^}]*LoadLibrary\.initialize\(\)""", RegexOption.DOT_MATCHES_ALL)
+                    .containsMatchIn(content)
+
+                if (!hasStaticInit) {
+                    val classMatch = Regex("""(?:public\s+)?(?:abstract\s+)?class\s+(\w+)""").find(content)
+                    val className = classMatch?.groupValues?.get(1) ?: fileName.removeSuffix(".java")
+                    val calledClass = "AutomergeSys"
+                    val relativePath = file.relativeTo(projectDir).path
+                    violations.add("$relativePath: $className calls $calledClass but missing static initializer")
+                }
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            val message = buildString {
+                appendLine()
+                appendLine("=" .repeat(80))
+                appendLine("LoadLibrary.initialize() Static Initializer Check FAILED")
+                appendLine("=".repeat(80))
+                appendLine()
+                appendLine("The following classes call AutomergeSys but are missing")
+                appendLine("a static initializer that calls LoadLibrary.initialize():")
+                appendLine()
+                violations.forEach { violation ->
+                    appendLine("  ❌ $violation")
+                }
+                appendLine()
+                appendLine("To fix this, add the following static block to each class:")
+                appendLine()
+                appendLine("    static {")
+                appendLine("        LoadLibrary.initialize();")
+                appendLine("    }")
+                appendLine()
+                appendLine("=".repeat(80))
+            }
+            throw GradleException(message)
+        }
+
+        logger.lifecycle("✓ All classes that call AutomergeSys have LoadLibrary.initialize() in static block")
+    }
+}
+
+// Make 'check' depend on our linter
+tasks.named("check") {
+    dependsOn(checkLoadLibraryInitializer)
+}
+
 // Create a separate test task that runs the same tests with Java 8 runtime
 tasks.register<Test>("testJava8") {
     description = "Runs tests with Java 8 runtime to verify backward compatibility"

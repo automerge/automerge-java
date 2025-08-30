@@ -6,6 +6,10 @@ class CommitResult {
     private Optional<ChangeHash> hash;
     private AutomergeSys.PatchLogPointer patchLog;
 
+    static {
+        LoadLibrary.initialize();
+    }
+
     protected CommitResult(Optional<ChangeHash> hash, AutomergeSys.PatchLogPointer patchLog) {
         this.hash = hash;
         this.patchLog = patchLog;
