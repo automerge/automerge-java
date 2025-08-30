@@ -25,7 +25,7 @@ impl TransactionOp for DeleteOp {
         match tx.delete(obj, self.key) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             }
         }
     }
@@ -64,8 +64,7 @@ pub unsafe extern "C" fn deleteInList<'local>(
     let idx = match usize::try_from(idx) {
         Ok(idx) => idx,
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "Index out of bounds")
-                .unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, "Index out of bounds");
             return;
         }
     };

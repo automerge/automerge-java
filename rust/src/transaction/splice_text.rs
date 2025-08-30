@@ -31,7 +31,7 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
         match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             }
         }
     }
