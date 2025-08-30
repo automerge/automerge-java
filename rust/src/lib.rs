@@ -31,6 +31,7 @@ mod read_ops;
 
 mod am_value;
 mod java_option;
+mod repo;
 
 const AUTOMERGE_EXCEPTION: &str = am_classname!("AutomergeException");
 

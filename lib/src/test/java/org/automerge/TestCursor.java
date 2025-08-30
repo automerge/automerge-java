@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public final class TestCursor {
+
 	private Document doc;
 	private ObjectId text;
 
@@ -36,7 +37,6 @@ public final class TestCursor {
 		Cursor oldCursor = doc.makeCursor(text, 3, heads);
 		Assertions.assertEquals(doc.lookupCursorIndex(text, oldCursor), 4);
 		Assertions.assertEquals(doc.lookupCursorIndex(text, oldCursor, heads), 3);
-
 	}
 
 	@Test
@@ -77,6 +77,7 @@ public final class TestCursor {
 		byte[] encoded = cursor.toBytes();
 		Cursor decoded = Cursor.fromBytes(encoded);
 		Assertions.assertEquals(doc.lookupCursorIndex(text, decoded), 3);
+
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			Cursor.fromBytes(new byte[]{0x11, 0x01});
 		});

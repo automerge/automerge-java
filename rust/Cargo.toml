@@ -8,10 +8,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-automerge = { git = "https://github.com/automerge/automerge.git", commit = "0159099" }
+automerge = "0.7.0"
+samod-core = {path = "../../samod-dev/samod-core"}
 jni = "0.21.1"
 thiserror = "1.0.37"
 automerge-jni-macros = { path = "./automerge-jni-macros" }
+rand = "0.9"
 
 [lib]
 crate_type = ["cdylib"]
