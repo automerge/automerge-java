@@ -28,7 +28,7 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
         let key = match self.prop.try_into_prop(env) {
             Ok(k) => k,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return;
             }
         };
@@ -37,7 +37,7 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
         match tx.put(obj, key, self.value) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             }
         }
     }
@@ -453,7 +453,7 @@ impl TransactionOp for SetObjOp {
         let oid = match tx.put_object(obj, self.key, self.value) {
             Ok(oid) => oid,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -501,8 +501,7 @@ pub unsafe extern "C" fn setObjectInList(
     let idx = match usize::try_from(idx) {
         Ok(idx) => idx,
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "index must be non-negative")
-                .unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, "index must be non-negative");
             return JObject::null().into_raw();
         }
     };

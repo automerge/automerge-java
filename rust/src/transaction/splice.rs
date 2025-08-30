@@ -38,7 +38,7 @@ impl TransactionOp for SpliceOp {
         match tx.splice(obj, self.index, self.delete, iter) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             }
         }
     }

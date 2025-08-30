@@ -29,7 +29,7 @@ impl TransactionOp for IncrementOp {
         match tx.increment(obj, self.key, self.value) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
             }
         }
     }
@@ -71,8 +71,7 @@ pub unsafe extern "C" fn incrementInList(
     let idx = match usize::try_from(idx) {
         Ok(i) => i,
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "index cannot be negative")
-                .unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, "index cannot be negative");
             return;
         }
     };

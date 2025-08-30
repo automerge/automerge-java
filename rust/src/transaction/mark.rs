@@ -37,7 +37,7 @@ impl TransactionOp for MarkOp {
             Ok(_) => {}
             Err(e) => {
                 let msg = format!("Error marking: {e}");
-                env.throw_new(AUTOMERGE_EXCEPTION, msg).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, msg);
             }
         }
     }
@@ -59,8 +59,7 @@ pub unsafe extern "C" fn markUint(
     let int = match u64::try_from(value) {
         Ok(i) => am::ScalarValue::Uint(i),
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "uint value must not be negative")
-                .unwrap();
+            env.throw_new(AUTOMERGE_EXCEPTION, "uint value must not be negative");
             return;
         }
     };
@@ -325,7 +324,7 @@ impl TransactionOp for Unmark {
             Ok(_) => {}
             Err(e) => {
                 let msg = format!("Error marking: {e}");
-                env.throw_new(AUTOMERGE_EXCEPTION, msg).unwrap();
+                env.throw_new(AUTOMERGE_EXCEPTION, msg);
             }
         }
     }
