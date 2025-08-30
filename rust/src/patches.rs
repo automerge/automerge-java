@@ -52,11 +52,7 @@ fn to_jni_patch<'a>(
                 &[jindex.into(), (&jvalue).into(), conflict.into()],
             )?
         }
-        am::PatchAction::Insert {
-            index,
-            values,
-            marks: _,
-        } => {
+        am::PatchAction::Insert { index, values } => {
             let arr = env.new_object_array(
                 values.len() as i32,
                 am_classname!("AmValue"),
