@@ -1,7 +1,7 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.library") version "8.0.0" 
+    id("com.android.library") version "8.13.0" 
     `maven-publish`
     signing
 }
@@ -33,7 +33,7 @@ for (android in androids) {
         var toolChainLocation = ndkPath + "/toolchains/llvm/prebuilt/linux-x86_64/bin"
         // The LINKER environment variable we pass to cargo is the target
         // triple uppercased with dashes turned to underscores
-        val linker = android.rustTarget.toUpperCase().replace("-", "_")
+        val linker = android.rustTarget.uppercase().replace("-", "_")
         workingDir = File("../rust")
         environment("CC", "${toolChainLocation}/clang")
         environment("CXX", "${toolChainLocation}/clang++")
@@ -57,7 +57,7 @@ android {
     namespace ="org.automerge.androidnative"
     compileSdkVersion = "android-26"
     defaultConfig {
-        minSdkVersion(26)
+        minSdk = 26
     }
 
     compileOptions {
@@ -78,7 +78,7 @@ android {
 }
 
 tasks.register<Copy>("copyJniLibs") {
-    destinationDir = File("$buildDir/jniLibs")
+    destinationDir = File("${layout.buildDirectory.get().asFile}/jniLibs")
     // set in the top level build.gradle.kts
     val version = (project.extra.get("libVersionSuffix") as String)
     for (androidLib in androidLibs) {

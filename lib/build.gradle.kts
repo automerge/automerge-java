@@ -10,7 +10,7 @@ plugins {
 }
 
 java {
-    base.archivesBaseName = "automerge"
+    base.archivesName.set("automerge")
     withJavadocJar()
     withSourcesJar()
     toolchain {
@@ -108,14 +108,14 @@ val generateVersionFile = tasks.register<Copy>("generateVersionFile") {
     expand(templateContext)
 
     from("src/templates/BuildInfo.java")
-    into("$buildDir/generated/java")
+    into("${layout.buildDirectory.get().asFile}/generated/java")
 }
 
 sourceSets {
     getByName("main") {
         java {
             // Add the generated version file from above to the sourceset
-            srcDir("$buildDir/generated/java")
+            srcDir("${layout.buildDirectory.get().asFile}/generated/java")
         }
     }
 }
