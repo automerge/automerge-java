@@ -72,7 +72,7 @@ impl OwnedTransactionOp for Commit {
             })
             .unwrap_or_else(|| make_empty_option(env))
             .unwrap();
-        let patches_jobject = JObject::from_raw(patches.to_pointer_obj(env).unwrap());
+        let patches_jobject = patches.to_pointer_obj(env).unwrap();
         let commit_result = env
             .new_object(
                 COMMITRESULT_CLASS,

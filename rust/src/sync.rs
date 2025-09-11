@@ -22,7 +22,7 @@ pub unsafe extern "C" fn createSyncState(
     _class: jni::objects::JClass,
 ) -> jobject {
     let state = SyncState::new();
-    state.to_pointer_obj(&mut env).unwrap()
+    state.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn decodeSyncState(
     let bytes_pointer = JPrimitiveArray::from_raw(bytes_pointer);
     let bytes = env.convert_byte_array(&bytes_pointer).unwrap();
     match SyncState::decode(&bytes) {
-        Ok(state) => state.to_pointer_obj(&mut env).unwrap(),
+        Ok(state) => state.to_pointer_obj(&mut env).unwrap().into_raw(),
         Err(e) => {
             env.throw_new(AUTOMERGE_EXCEPTION, e.to_string()).unwrap();
             JObject::null().into_raw()
