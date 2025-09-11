@@ -3,6 +3,7 @@ use automerge::{self as am, transaction::Transaction, ChangeHash};
 use jni::{
     objects::{JObject, JObjectArray, JPrimitiveArray, JValue},
     sys::{jbyteArray, jobject},
+    JNIEnv,
 };
 
 pub(crate) const CHANGEHASH_CLASS: &str = am_classname!("ChangeHash");
@@ -41,7 +42,10 @@ pub(crate) trait AsPointerObj: Sized {
         Ok(result)
     }
 
-    fn to_pointer_obj(self, env: &mut jni::JNIEnv) -> Result<jobject, errors::ConstructPointerObj> {
+    fn to_pointer_obj<'local>(
+        self,
+        env: &mut jni::JNIEnv<'local>,
+    ) -> Result<JObject<'local>, errors::ConstructPointerObj> {
         let boxed = Box::new(self);
         let ptr = JValue::from(Box::into_raw(boxed) as i64);
         let obj = env.alloc_object(Self::classname()).map_err(|e| {
@@ -56,7 +60,7 @@ pub(crate) trait AsPointerObj: Sized {
                 err: e,
             }
         })?;
-        Ok(obj.into_raw())
+        Ok(obj)
     }
 }
 

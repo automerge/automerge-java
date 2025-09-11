@@ -15,7 +15,7 @@ use crate::{
 #[jni_fn]
 pub unsafe extern "C" fn createDoc(mut env: jni::JNIEnv) -> jobject {
     let doc = automerge::Automerge::new();
-    doc.to_pointer_obj(&mut env).unwrap()
+    doc.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn createDocWithActor(
         .convert_byte_array(JPrimitiveArray::from_raw(actor_id_bytes))
         .unwrap();
     let doc = automerge::Automerge::new().with_actor(actor.into());
-    doc.to_pointer_obj(&mut env).unwrap()
+    doc.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn startTransaction(
 ) -> jobject {
     let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
     let tx = doc.transaction();
-    tx.to_pointer_obj(&mut env).unwrap()
+    tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn startTransactionLogPatches(
     let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
     let patch_log = PatchLog::owned_from_pointer_obj(&mut env, patch_log_pointer).unwrap();
     let tx = doc.transaction_log_patches(*patch_log);
-    tx.to_pointer_obj(&mut env).unwrap()
+    tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn startTransactionAt(
     let patch_log = PatchLog::owned_from_pointer_obj(&mut env, patchlog_pointer).unwrap();
     let heads = heads_from_jobject(&mut env, heads).unwrap();
     let tx = doc.transaction_at(*patch_log, &heads);
-    tx.to_pointer_obj(&mut env).unwrap()
+    tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn loadDoc(
             return JObject::null().into_raw();
         }
     };
-    doc.to_pointer_obj(&mut env).unwrap()
+    doc.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn forkDoc(
     doc_pointer: jobject,
 ) -> jobject {
     let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
-    doc.fork().to_pointer_obj(&mut env).unwrap()
+    doc.fork().to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
@@ -155,6 +155,7 @@ pub unsafe extern "C" fn forkDocWithActor(
         .with_actor(actor)
         .to_pointer_obj(&mut env)
         .unwrap()
+        .into_raw()
 }
 
 #[no_mangle]
@@ -202,7 +203,7 @@ pub unsafe fn do_fork_at(
     } else {
         doc
     };
-    doc.to_pointer_obj(&mut env).unwrap()
+    doc.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
 #[no_mangle]
