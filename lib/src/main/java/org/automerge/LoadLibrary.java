@@ -82,10 +82,6 @@ class LoadLibrary {
 			CURRENT_PLATFORM = Platform.WINDOWS_X86_32;
 		} else if (name.startsWith("windows") && ("x86_64".equals(arch) || "amd64".equals(arch))) {
 			CURRENT_PLATFORM = Platform.WINDOWS_X86_64;
-		} else if ("linux".equals(name) && "i386".equals(arch)) {
-			CURRENT_PLATFORM = Platform.LINUX_X86_32;
-		} else if ("linux".equals(name) && "amd64".equals(arch)) {
-			CURRENT_PLATFORM = Platform.LINUX_X86_64;
 		} else if ("dalvik".equals(vm) && "armeabi-v7a".equals(arch)) {
 			CURRENT_PLATFORM = Platform.ANDROID_ARM;
 		} else if ("dalvik".equals(vm) && "aarch64".equals(arch)) {
@@ -96,6 +92,12 @@ class LoadLibrary {
 			CURRENT_PLATFORM = Platform.ANDROID_X86_64;
 		} else if ("dalvik".equals(vm)) {
 			CURRENT_PLATFORM = Platform.ANDROID_UNKNOWN;
+		} else if ("linux".equals(name) && "i386".equals(arch)) {
+			CURRENT_PLATFORM = Platform.LINUX_X86_32;
+		} else if ("linux".equals(name) && "amd64".equals(arch)) {
+			CURRENT_PLATFORM = Platform.LINUX_X86_64;
+		} else if ("linux".equals(name) && "aarch64".equals(arch)) {
+			CURRENT_PLATFORM = Platform.LINUX_ARM64;
 		} else if ("sunos".equals(name) && "x86".equals(arch)) {
 			CURRENT_PLATFORM = Platform.SOLARIS_X86_32;
 		} else if ("sunos".equals(name) && "amd64".equals(arch)) {
