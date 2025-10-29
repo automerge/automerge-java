@@ -194,16 +194,16 @@ if  (isDev) {
         }
     }
 } else {
-    val localProps = Properties()
-    localProps.load(rootProject.file("local.properties").inputStream())
-    val aarchLinkerPath: String by localProps
-    val win64LinkerPath: String by localProps
-    val win32LinkerPath: String by localProps
-    val x86_64LinuxLinkerPath: String by localProps
-    val aarchDarwinLinkerPath: String by localProps
-    val aarchDarwinLdPath: String by localProps
-    val x86_64DarwinLinkerPath: String by localProps
-    val x86_64DarwinLdPath: String by localProps
+    // Load properties with priority: -P flags > local.properties
+    // This allows CI/Docker to override via command-line without modifying local.properties
+    val aarchLinkerPath = requirePropertyWithFallback("aarchLinkerPath")
+    val win64LinkerPath = requirePropertyWithFallback("win64LinkerPath")
+    val win32LinkerPath = requirePropertyWithFallback("win32LinkerPath")
+    val x86_64LinuxLinkerPath = requirePropertyWithFallback("x86_64LinuxLinkerPath")
+    val aarchDarwinLinkerPath = requirePropertyWithFallback("aarchDarwinLinkerPath")
+    val aarchDarwinLdPath = requirePropertyWithFallback("aarchDarwinLdPath")
+    val x86_64DarwinLinkerPath = requirePropertyWithFallback("x86_64DarwinLinkerPath")
+    val x86_64DarwinLdPath = requirePropertyWithFallback("x86_64DarwinLdPath")
 
     // The list of all the targets we build from rust.
     //

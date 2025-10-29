@@ -14,4 +14,3 @@ subprojects {
     ext.set("cargoVersion", cargoVersion)
     ext.set("libVersionSuffix", cargoVersion.replace(".", "_"))
 }
-
