@@ -14,11 +14,11 @@ java {
     withJavadocJar()
     withSourcesJar()
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
-// Create a configuration which specifies the `TargetJvmEnvironment` as android. We can then attach the 
+// Create a configuration which specifies the `TargetJvmEnvironment` as android. We can then attach the
 // androidnative dependency to this configuration. This in turn means that the androidnative dependency
 // will only be pulled in by gradle projects building for android. (Maven projects will see it as a
 // dependency of type AAR which they just ignore)
@@ -66,7 +66,7 @@ spotless {
         importOrder()
         targetExclude("src/templates/*", "build/generated/java/BuildInfo.java")
         removeUnusedImports()
-        cleanthat() 
+        cleanthat()
         eclipse()
         formatAnnotations()
     }
@@ -85,7 +85,30 @@ testing {
             // Use JUnit Jupiter test framework
             useJUnitJupiter("5.8.2")
         }
+
+
     }
+}
+
+// Create a separate test task that runs the same tests with Java 8 runtime
+tasks.register<Test>("testJava8") {
+    description = "Runs tests with Java 8 runtime to verify backward compatibility"
+    group = "verification"
+
+    // Use the same test classes as the regular test task
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    // Use JUnit Platform (Jupiter) like the regular test task
+    useJUnitPlatform()
+
+    // Configure to use Java 8 runtime
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    })
+
+    // Depend on compiling the test classes
+    dependsOn(tasks.testClasses)
 }
 
 // Write the version of the library to a generated java class. This is later
@@ -166,6 +189,9 @@ if  (isDev) {
     tasks.withType<Test> {
         dependsOn("createVersionedLibForTest")
         systemProperty("java.library.path", "../rust/target/debug/")
+        testLogging {
+            showStandardStreams = true
+        }
     }
 } else {
     val localProps = Properties()
@@ -179,7 +205,7 @@ if  (isDev) {
     val x86_64DarwinLinkerPath: String by localProps
     val x86_64DarwinLdPath: String by localProps
 
-    // The list of all the targets we build from rust. 
+    // The list of all the targets we build from rust.
     //
     // Note that this does not include android targets because we distribute them
     // separately via an AAR.
@@ -242,14 +268,15 @@ if  (isDev) {
     }
 }
 
-tasks.withType<Test> {
-    this.testLogging {
-        this.showStandardStreams = true
-    }
-}
+
 
 tasks.compileJava {
     dependsOn(generateVersionFile)
+    options.release = 8
+}
+
+tasks.compileTestJava {
+    options.release = 8
 }
 
 tasks.named("sourcesJar") {
@@ -284,7 +311,7 @@ publishing {
                     connection.set("scm:git:git://github.com/automerge/automerge-java.git")
                     url.set("https://github.com/automerge/automerge-java")
                 }
-                // By default the "androidnative" dependency is rendered to the POM as an optional dependency. 
+                // By default the "androidnative" dependency is rendered to the POM as an optional dependency.
                 // The dependency is an AAR though, not a JAR and this is not added to the POM. This means
                 // that maven will attempt to download the jar and then get upset when it can't find it.
                 // This hack adds the "<type>aar</type>" element to the dependency in the POM so that maven
@@ -299,7 +326,7 @@ publishing {
                         it is groovy.util.Node && it.name() == xmlName("dependencies")
                     }
                     fun artifactId(depNode: groovy.util.Node): String? {
-                        val children: List<groovy.util.Node> =  depNode.children().mapNotNull { 
+                        val children: List<groovy.util.Node> =  depNode.children().mapNotNull {
                             when (it) {
                                 is groovy.util.Node -> it
                                 else -> null
