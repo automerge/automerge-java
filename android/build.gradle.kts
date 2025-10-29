@@ -1,14 +1,14 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.library") version "8.13.0" 
+    id("com.android.library") version "8.13.0"
     `maven-publish`
     signing
 }
 
-val localProps = Properties()
-localProps.load(rootProject.file("local.properties").inputStream())
-val ndkPath: String by localProps
+// Load properties with priority: -P flags > local.properties
+// This allows CI/Docker to override via command-line without modifying local.properties
+val ndkPath = requirePropertyWithFallback("ndkPath")
 val ndkApiLevel = 26
 val rustDir = "${projectDir}/../rust"
 
