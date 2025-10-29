@@ -29,7 +29,7 @@ class LoadLibrary {
 	}
 
 	private enum Platform {
-		UNKNOWN, WINDOWS_X86_32, WINDOWS_X86_64, LINUX_X86_32, LINUX_X86_64, LINUX_ARM64, SOLARIS_X86_32, SOLARIS_X86_64, SOLARIS_SPARC_32, SOLARIS_SPARC_64, MACOSX_X86_32, MACOSX_X86_64, MACOSX_ARM64, ANDROID_ARM, ANDROID_ARM64, ANDROID_X86_32, ANDROID_X86_64, ANDROID_UNKNOWN;
+		UNKNOWN, WINDOWS_X86_32, WINDOWS_X86_64, WINDOWS_ARM, LINUX_X86_32, LINUX_X86_64, LINUX_ARM64, SOLARIS_X86_32, SOLARIS_X86_64, SOLARIS_SPARC_32, SOLARIS_SPARC_64, MACOSX_X86_32, MACOSX_X86_64, MACOSX_ARM64, ANDROID_ARM, ANDROID_ARM64, ANDROID_X86_32, ANDROID_X86_64, ANDROID_UNKNOWN;
 
 		Optional<Library> library() {
 			switch (this) {
@@ -37,6 +37,8 @@ class LoadLibrary {
 					return Optional.of(new Library("x86_64-pc-windows-gnu", "", "dll"));
 				case WINDOWS_X86_32 :
 					return Optional.of(new Library("i686-pc-windows-gnu", "", "dll"));
+				case WINDOWS_ARM :
+					return Optional.of(new Library("aarch64-pc-windows-gnullvm", "", "dll"));
 				case LINUX_X86_64 :
 					return Optional.of(new Library("x86_64-unknown-linux-gnu", "lib", "so"));
 				case LINUX_ARM64 :
@@ -82,6 +84,8 @@ class LoadLibrary {
 			CURRENT_PLATFORM = Platform.WINDOWS_X86_32;
 		} else if (name.startsWith("windows") && ("x86_64".equals(arch) || "amd64".equals(arch))) {
 			CURRENT_PLATFORM = Platform.WINDOWS_X86_64;
+		} else if (name.startsWith("windows") && "aarch64".equals(arch)) {
+			CURRENT_PLATFORM = Platform.WINDOWS_ARM;
 		} else if ("dalvik".equals(vm) && "armeabi-v7a".equals(arch)) {
 			CURRENT_PLATFORM = Platform.ANDROID_ARM;
 		} else if ("dalvik".equals(vm) && "aarch64".equals(arch)) {
