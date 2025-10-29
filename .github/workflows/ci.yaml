@@ -66,7 +66,7 @@ jobs:
           echo "Found $COUNT native libraries"
 
           # Should have 6 libraries
-          if [ "$COUNT" -ne 6 ]; then
+          if [ "$COUNT" -ne 7 ]; then
             echo "❌ Expected 6 native libraries, found $COUNT"
             exit 1
           fi
@@ -152,6 +152,7 @@ jobs:
           echo 'aarchLinkerPath=/fake' >> local.properties
           echo 'win64LinkerPath=/fake' >> local.properties
           echo 'win32LinkerPath=/fake' >> local.properties
+          echo 'aarchWinLinkerPath=/fake' >> local.properties
           echo 'x86_64LinuxLinkerPath=/fake' >> local.properties
           echo 'aarchDarwinLinkerPath=/fake' >> local.properties
           echo 'aarchDarwinLdPath=/fake' >> local.properties
@@ -205,6 +206,15 @@ jobs:
         run: |
           echo 'sdk.dir=/fake' >> local.properties
           echo 'ndkPath=/fake' >> local.properties
+          echo 'aarchLinkerPath=/fake' >> local.properties
+          echo 'win64LinkerPath=/fake' >> local.properties
+          echo 'win32LinkerPath=/fake' >> local.properties
+          echo 'aarchWinLinkerPath=/fake' >> local.properties
+          echo 'x86_64LinuxLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLdPath=/fake' >> local.properties
+          echo 'x86_64DarwinLinkerPath=/fake' >> local.properties
+          echo 'x86_64DarwinLdPath=/fake' >> local.properties
 
       - name: Set JAVA_HOME to JDK 21 for build
         shell: bash

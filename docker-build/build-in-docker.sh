@@ -66,6 +66,7 @@ echo ""
   -PaarchLinkerPath=/usr/bin/aarch64-linux-gnu-gcc \
   -Pwin64LinkerPath=/usr/bin/x86_64-w64-mingw32-gcc \
   -Pwin32LinkerPath=/usr/bin/i686-w64-mingw32-gcc \
+  -PaarchWinLinkerPath=$AARCH64_MINGW_PATH \
   -Px86_64LinuxLinkerPath=/usr/bin/gcc \
   -PaarchDarwinLinkerPath="$AARCH_DARWIN_CLANG" \
   -PaarchDarwinLdPath="$AARCH_DARWIN_LD" \

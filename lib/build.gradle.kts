@@ -199,6 +199,7 @@ if  (isDev) {
     val aarchLinkerPath = requirePropertyWithFallback("aarchLinkerPath")
     val win64LinkerPath = requirePropertyWithFallback("win64LinkerPath")
     val win32LinkerPath = requirePropertyWithFallback("win32LinkerPath")
+    val aarchWinLinkerPath = requirePropertyWithFallback("aarchWinLinkerPath")
     val x86_64LinuxLinkerPath = requirePropertyWithFallback("x86_64LinuxLinkerPath")
     val aarchDarwinLinkerPath = requirePropertyWithFallback("aarchDarwinLinkerPath")
     val aarchDarwinLdPath = requirePropertyWithFallback("aarchDarwinLdPath")
@@ -214,6 +215,7 @@ if  (isDev) {
         NativeTarget("aarch64-unknown-linux-gnu", aarchLinkerPath, So()),
         NativeTarget("x86_64-pc-windows-gnu", win64LinkerPath, Dll()),
         NativeTarget("i686-pc-windows-gnu", win32LinkerPath, Dll()),
+        NativeTarget("aarch64-pc-windows-gnullvm", aarchWinLinkerPath, Dll()),
         // For Darwin we use the -fuse-ld=ld flag to force the ld clang uses to
         // be the linker for the particular architecture we're building for.
         NativeTarget(

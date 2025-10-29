@@ -33,6 +33,7 @@ RUN rustup target add x86_64-unknown-linux-gnu && \
     rustup target add aarch64-unknown-linux-gnu && \
     rustup target add x86_64-pc-windows-gnu && \
     rustup target add i686-pc-windows-gnu && \
+    rustup target add aarch64-pc-windows-gnullvm && \
     rustup target add x86_64-apple-darwin && \
     rustup target add aarch64-apple-darwin
 
@@ -48,5 +49,12 @@ WORKDIR /opt/osxcross
 RUN UNATTENDED=1 ./build.sh
 
 ENV PATH="/opt/osxcross/target/bin:${PATH}"
+
+# Add the llvm-mingw libraries
+RUN curl -L curl -L https://github.com/mstorsjo/llvm-mingw/releases/download/20251021/llvm-mingw-20251021-ucrt-ubuntu-22.04-x86_64.tar.xz > llvm-mingw.tar.xz
+RUN mkdir -p /opt/llvm-mingw
+RUN tar -xf llvm-mingw.tar.xz -C /opt/llvm-mingw
+
+ENV AARCH64_MINGW_PATH=/opt/llvm-mingw/llvm-mingw-20251021-ucrt-ubuntu-22.04-x86_64/bin/aarch64-w64-mingw32-gcc
 
 WORKDIR /workspace
