@@ -327,7 +327,7 @@ public class Document implements Read {
 		}
 	}
 
-	public synchronized Optional<AmValue> get(ObjectId obj, int key) {
+	public synchronized Optional<AmValue> get(ObjectId obj, long key) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getInListInTx(this.transactionPtr.get(), obj, key);
 		} else {
@@ -343,7 +343,7 @@ public class Document implements Read {
 		}
 	}
 
-	public synchronized Optional<AmValue> get(ObjectId obj, int idx, ChangeHash[] heads) {
+	public synchronized Optional<AmValue> get(ObjectId obj, long idx, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
 		} else {
@@ -359,7 +359,7 @@ public class Document implements Read {
 		}
 	}
 
-	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllInListInTx(this.transactionPtr.get(), obj, idx);
 		} else {
@@ -375,7 +375,7 @@ public class Document implements Read {
 		}
 	}
 
-	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx, ChangeHash[] heads) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getAllAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
 		} else {
@@ -661,7 +661,7 @@ public class Document implements Read {
 	}
 
 	@Override
-	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index) {
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.empty());
 		} else {
@@ -670,7 +670,7 @@ public class Document implements Read {
 	}
 
 	@Override
-	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads) {
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index, ChangeHash[] heads) {
 		if (this.transactionPtr.isPresent()) {
 			return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.of(heads));
 		} else {

@@ -64,7 +64,7 @@ public interface Read {
 	 * @throws AutomergeException
 	 *             if the object ID is not a list
 	 */
-	public Optional<AmValue> get(ObjectId obj, int idx);
+	public Optional<AmValue> get(ObjectId obj, long idx);
 
 	/**
 	 * Get a value from the list given by obj as at heads
@@ -86,7 +86,7 @@ public interface Read {
 	 * @throws AutomergeException
 	 *             if the object ID is not a list
 	 */
-	public Optional<AmValue> get(ObjectId obj, int idx, ChangeHash[] heads);
+	public Optional<AmValue> get(ObjectId obj, long idx, ChangeHash[] heads);
 
 	/**
 	 * Get all the possibly conflicting values for a key from the map given by obj
@@ -149,7 +149,7 @@ public interface Read {
 	 * @throws AutomergeException
 	 *             if the object ID refers to an object which is not a map
 	 */
-	public Optional<Conflicts> getAll(ObjectId obj, int idx);
+	public Optional<Conflicts> getAll(ObjectId obj, long idx);
 
 	/**
 	 * Get all the possibly conflicting values for an index in the list given by obj
@@ -172,7 +172,7 @@ public interface Read {
 	 * @throws AutomergeException
 	 *             if the object ID refers to an object which is not a map
 	 */
-	public Optional<Conflicts> getAll(ObjectId obj, int idx, ChangeHash[] heads);
+	public Optional<Conflicts> getAll(ObjectId obj, long idx, ChangeHash[] heads);
 
 	/**
 	 * Get the value of a text object
@@ -312,7 +312,7 @@ public interface Read {
 	 * @return The marks at the given index or None if the object is not a text
 	 *         object
 	 */
-	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index);
+	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index);
 
 	/**
 	 * Get the marks defined at the given index in a text object
@@ -326,7 +326,7 @@ public interface Read {
 	 * @return The marks at the given index or None if the object is not a text
 	 *         object
 	 */
-	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads);
+	public HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index, ChangeHash[] heads);
 
 	/**
 	 * Get the heads of the object

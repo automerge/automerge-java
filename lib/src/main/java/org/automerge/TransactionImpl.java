@@ -45,7 +45,7 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.getInMapInTx(this.pointer.get(), obj, key);
 	}
 
-	public synchronized Optional<AmValue> get(ObjectId obj, int key) {
+	public synchronized Optional<AmValue> get(ObjectId obj, long key) {
 		return AutomergeSys.getInListInTx(this.pointer.get(), obj, key);
 	}
 
@@ -53,7 +53,7 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.getAllInMapInTx(this.pointer.get(), obj, key);
 	}
 
-	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx) {
 		return AutomergeSys.getAllInListInTx(this.pointer.get(), obj, idx);
 	}
 
@@ -61,7 +61,7 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.getAllAtInMapInTx(this.pointer.get(), obj, key, heads);
 	}
 
-	public synchronized Optional<Conflicts> getAll(ObjectId obj, int idx, ChangeHash[] heads) {
+	public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx, ChangeHash[] heads) {
 		return AutomergeSys.getAllAtInListInTx(this.pointer.get(), obj, idx, heads);
 	}
 
@@ -69,7 +69,7 @@ public class TransactionImpl implements Transaction {
 		return AutomergeSys.getAtInMapInTx(this.pointer.get(), obj, key, heads);
 	}
 
-	public Optional<AmValue> get(ObjectId obj, int idx, ChangeHash[] heads) {
+	public Optional<AmValue> get(ObjectId obj, long idx, ChangeHash[] heads) {
 		return AutomergeSys.getAtInListInTx(this.pointer.get(), obj, idx, heads);
 	}
 
@@ -349,12 +349,12 @@ public class TransactionImpl implements Transaction {
 	}
 
 	@Override
-	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index) {
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index) {
 		return AutomergeSys.getMarksAtIndexInTx(this.pointer.get(), obj, index, Optional.empty());
 	}
 
 	@Override
-	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, int index, ChangeHash[] heads) {
+	public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index, ChangeHash[] heads) {
 		return AutomergeSys.getMarksAtIndexInTx(this.pointer.get(), obj, index, Optional.of(heads));
 	}
 

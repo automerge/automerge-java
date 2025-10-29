@@ -70,42 +70,42 @@ class AutomergeSys {
 	// Read methods
 	public static native Optional<AmValue> getInMapInDoc(DocPointer doc, ObjectId obj, String key);
 
-	public static native Optional<AmValue> getInListInDoc(DocPointer doc, ObjectId obj, int index);
+	public static native Optional<AmValue> getInListInDoc(DocPointer doc, ObjectId obj, long index);
 
 	public static native Optional<AmValue> getInMapInTx(TransactionPointer tx, ObjectId obj, String key);
 
-	public static native Optional<AmValue> getInListInTx(TransactionPointer tx, ObjectId obj, int index);
+	public static native Optional<AmValue> getInListInTx(TransactionPointer tx, ObjectId obj, long index);
 
 	public static native Optional<AmValue> getAtInMapInDoc(DocPointer doc, ObjectId obj, String key,
 			ChangeHash[] heads);
 
-	public static native Optional<AmValue> getAtInListInDoc(DocPointer doc, ObjectId obj, int index,
+	public static native Optional<AmValue> getAtInListInDoc(DocPointer doc, ObjectId obj, long index,
 			ChangeHash[] heads);
 
 	public static native Optional<AmValue> getAtInMapInTx(TransactionPointer tx, ObjectId obj, String key,
 			ChangeHash[] heads);
 
-	public static native Optional<AmValue> getAtInListInTx(TransactionPointer tx, ObjectId obj, int index,
+	public static native Optional<AmValue> getAtInListInTx(TransactionPointer tx, ObjectId obj, long index,
 			ChangeHash[] heads);
 
 	public static native Optional<Conflicts> getAllInMapInDoc(DocPointer doc, ObjectId obj, String key);
 
-	public static native Optional<Conflicts> getAllInListInDoc(DocPointer doc, ObjectId obj, int idx);
+	public static native Optional<Conflicts> getAllInListInDoc(DocPointer doc, ObjectId obj, long idx);
 
 	public static native Optional<Conflicts> getAllInMapInTx(TransactionPointer tx, ObjectId obj, String key);
 
-	public static native Optional<Conflicts> getAllInListInTx(TransactionPointer tx, ObjectId obj, int idx);
+	public static native Optional<Conflicts> getAllInListInTx(TransactionPointer tx, ObjectId obj, long idx);
 
 	public static native Optional<Conflicts> getAllAtInMapInDoc(DocPointer doc, ObjectId obj, String key,
 			ChangeHash[] heads);
 
-	public static native Optional<Conflicts> getAllAtInListInDoc(DocPointer doc, ObjectId obj, int idx,
+	public static native Optional<Conflicts> getAllAtInListInDoc(DocPointer doc, ObjectId obj, long idx,
 			ChangeHash[] heads);
 
 	public static native Optional<Conflicts> getAllAtInMapInTx(TransactionPointer tx, ObjectId obj, String key,
 			ChangeHash[] heads);
 
-	public static native Optional<Conflicts> getAllAtInListInTx(TransactionPointer tx, ObjectId obj, int idx,
+	public static native Optional<Conflicts> getAllAtInListInTx(TransactionPointer tx, ObjectId obj, long idx,
 			ChangeHash[] heads);
 
 	// Transaction mutation methods
