@@ -249,7 +249,7 @@ class LoadLibrary {
 
 		// temporary library folder
 		String tempFolder = getTempDir().getAbsolutePath();
-		if (CURRENT_PLATFORM.library().isEmpty()) {
+		if (!CURRENT_PLATFORM.library().isPresent()) {
 			throw new UnsupportedPlatformException("no native automerge library found for " + CURRENT_PLATFORM.name());
 		}
 		Library lib = CURRENT_PLATFORM.library().get();

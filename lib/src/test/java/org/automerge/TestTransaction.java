@@ -55,7 +55,7 @@ public final class TestTransaction {
 	public void testRollBackRemovesOps() {
 		tx.set(ObjectId.ROOT, "key", 1.23);
 		tx.rollback();
-		Assertions.assertTrue(doc.get(ObjectId.ROOT, "key").isEmpty());
+		Assertions.assertFalse(doc.get(ObjectId.ROOT, "key").isPresent());
 	}
 
 	@Test
@@ -69,7 +69,7 @@ public final class TestTransaction {
 	public void testCloseWithoutCommitRollsback() {
 		tx.set(ObjectId.ROOT, "key", 1.23);
 		tx.close();
-		Assertions.assertTrue(doc.get(ObjectId.ROOT, "key").isEmpty());
+		Assertions.assertFalse(doc.get(ObjectId.ROOT, "key").isPresent());
 		// Check we can start a new transaction because the last one was closed
 		doc.startTransaction();
 	}
@@ -147,7 +147,7 @@ public final class TestTransaction {
 
 	@Test
 	public final void getNone() {
-		Assertions.assertTrue(doc.get(ObjectId.ROOT, "nonexistent").isEmpty());
+		Assertions.assertFalse(doc.get(ObjectId.ROOT, "nonexistent").isPresent());
 	}
 
 	// Test for creating objects
