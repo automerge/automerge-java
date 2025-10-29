@@ -21,3 +21,4 @@ pluginManagement {
 rootProject.name = "automerge-java"
 include("lib")
 include("android")
+include("android-test-app")
