@@ -266,6 +266,74 @@ if  (isDev) {
             with(nativeTask.copy)
         }
     }
+
+    // Custom JavaCompile task for test compilation that uses JAR instead of processResources
+    // This breaks the dependency chain to avoid triggering Rust compilation
+    val compileTestJavaForJar = tasks.register<JavaCompile>("compileTestJavaForJar") {
+        description = "Compile test Java using pre-built JAR (no Rust compilation)"
+        source = sourceSets.test.get().java
+        destinationDirectory.set(layout.buildDirectory.dir("classes/java/testJar"))
+
+        // Use main compiled classes + JAR for compilation classpath
+        // This avoids processResources → native compilation chain
+        classpath = sourceSets.main.get().output.classesDirs +
+                   fileTree(layout.buildDirectory.dir("libs")) { include("*.jar") } +
+                   configurations.testCompileClasspath.get()
+
+        options.release.set(8)
+
+        doFirst {
+            val jarFiles = fileTree(layout.buildDirectory.dir("libs")) { include("*.jar") }.files
+            if (jarFiles.isEmpty()) {
+                throw GradleException("No JAR found in lib/build/libs/. Please build the JAR first using: ./gradlew lib:jar")
+            }
+        }
+    }
+
+    // Task to test the pre-built JAR on the current platform
+    // This compiles test Java code and runs tests using the JAR's bundled native libraries
+    //
+    // Usage: After building the JAR (e.g., in Docker), run this on each target platform
+    //   ./gradlew lib:testJar
+    //
+    // Prerequisites:
+    //   - JAR must already exist in lib/build/libs/
+    //   - Main Java classes must be compiled (lib/build/classes/java/main/)
+    //   - Use after cross-compilation to verify the JAR works on this platform
+    tasks.register<Test>("testJar") {
+        description = "Test pre-built JAR with platform-specific native libraries"
+        group = "verification"
+        outputs.upToDateWhen { false }
+
+        // Depend on our custom compile task instead of regular compileTestJava
+        dependsOn(compileTestJavaForJar)
+
+        // Use the output from our custom compile task
+        testClassesDirs = files(layout.buildDirectory.dir("classes/java/testJar"))
+
+        // Configure test runtime classpath: test output + JAR + test runtime dependencies
+        // Based on StackOverflow approach but without jar task dependency
+        classpath = files(
+            layout.buildDirectory.dir("classes/java/testJar"),
+            sourceSets.test.get().output.resourcesDir
+        ) + configurations.testRuntimeClasspath.get() +
+            fileTree(layout.buildDirectory.dir("libs")) { include("*.jar") }
+
+        // The test will load native libraries from the JAR via LoadLibrary.extractAndLoadLibraryFile()
+        // No need to set java.library.path since LoadLibrary handles JAR extraction
+
+        // Use JUnit Platform (Jupiter) like the regular test task
+        useJUnitPlatform()
+
+        testLogging {
+            showStandardStreams = true
+        }
+
+        doFirst {
+            val jarFiles = fileTree(layout.buildDirectory.dir("libs")) { include("*.jar") }.files
+            println("Testing with JAR: ${jarFiles.first().name}")
+        }
+    }
 }
 
 
