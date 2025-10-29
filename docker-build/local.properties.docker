@@ -1,0 +1,13 @@
+# local.properties for Docker cross-compilation build
+# This file is copied into the container during CI builds
+
+sdk.dir=/fake
+ndkPath=/fake
+aarchLinkerPath=/usr/bin/aarch64-linux-gnu-gcc
+win64LinkerPath=/usr/bin/x86_64-w64-mingw32-gcc
+win32LinkerPath=/usr/bin/i686-w64-mingw32-gcc
+x86_64LinuxLinkerPath=/usr/bin/gcc
+aarchDarwinLinkerPath=/opt/osxcross/target/bin/arm64-apple-darwin23-clang
+aarchDarwinLdPath=/opt/osxcross/target/bin/arm64-apple-darwin23-ld
+x86_64DarwinLinkerPath=/opt/osxcross/target/bin/x86_64-apple-darwin23-clang
+x86_64DarwinLdPath=/opt/osxcross/target/bin/x86_64-apple-darwin23-ld

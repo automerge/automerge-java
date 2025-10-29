@@ -15,3 +15,6 @@ android/bin
 .vim
 .settings
 local.properties
+
+# Docker build context - macOS SDK cannot be committed
+docker-build/sdk/
