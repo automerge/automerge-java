@@ -243,6 +243,9 @@ if  (isDev) {
         val output = "../rust/target/${target.rustTarget}/release/${target.output.name}"
         val env: MutableMap<String, String> = mutableMapOf(
             "CARGO_TARGET_${target.rustTarget.uppercase().replace("-", "_")}_LINKER" to target.linkerPath,
+            // Separate build directory for each target otherwise we can't reuse the
+            // build directory between invocations and every run has to build from start
+            "CARGO_BUILD_BUILD_DIR" to "../rust/crossbuild/${target.rustTarget}"
         )
         if (target.linkerArgs != null) {
             env["RUSTFLAGS"] = "-C link-arg=${target.linkerArgs}"
