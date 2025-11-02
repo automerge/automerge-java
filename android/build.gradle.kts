@@ -2,8 +2,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.library") version "8.13.0"
-    `maven-publish`
-    signing
+    id("org.danilopianini.publish-on-central") version "9.1.7"
 }
 
 // Load properties with priority: -P flags > local.properties
@@ -49,6 +48,18 @@ for (android in androids) {
 repositories {
     mavenCentral()
     google()
+}
+
+group = "org.automerge"
+version = "0.0.7"
+
+publishOnCentral {
+    projectDescription.set("Shared libraries for automerge on android")
+    projectLongName.set("Automerge Android Native Libraries")
+    projectUrl.set("https://automerge.org")
+    licenseName.set("MIT")
+    licenseUrl.set("https://opensource.org/licenses/MIT")
+    scmConnection.set("scm:git:git://github.com/automerge/automerge-java.git")
 }
 
 android {
@@ -99,23 +110,12 @@ tasks.configureEach(Action<Task> {
 
 publishing {
     publications {
-        register<MavenPublication>("automerge") {
-            groupId = "org.automerge"
+        create<MavenPublication>("release") {
             artifactId = "androidnative"
-            version = "0.0.7"
             afterEvaluate {
                 from(components["release"])
             }
             pom {
-                name.set("automerge-android-native")
-                description.set("Shared libraries for automerge on android")
-                url.set("automerge.org")
-                licenses {
-                    license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
                 developers {
                     developer {
                         id.set("alex")
@@ -123,25 +123,20 @@ publishing {
                         email.set("alex@memoryandthought.me")
                     }
                 }
-                scm {
-                    connection.set("scm:git:git://github.com/automerge/automerge-java.git")
-                    url.set("https://github.com/automerge/automerge-java")
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            credentials {
-                username = project.findProperty("ossrhUsername")?.toString() ?: System.getenv("OSSRH_USERNAME")
-                password = project.findProperty("ossrhPassword")?.toString() ?: System.getenv("OSSRH_PASSWORD")
             }
         }
     }
 }
 
 signing {
-    sign(publishing.publications["automerge"])
-    useGpgCmd()
+    // For CI: use in-memory keys from environment
+    val signingKey: String? = System.getenv("SIGNING_KEY")
+    val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
+
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    } else {
+        // For local: use GPG agent
+        useGpgCmd()
+    }
 }
