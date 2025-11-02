@@ -4,9 +4,8 @@ val isDev = providers.gradleProperty("env").getOrElse("release") == "dev"
 
 plugins {
     `java-library`
-    `maven-publish`
+    id("org.danilopianini.publish-on-central") version "9.1.7"
     id("com.diffplug.spotless")
-    signing
 }
 
 java {
@@ -72,7 +71,17 @@ spotless {
     }
 }
 
-project.version = "0.0.7"
+group = "org.automerge"
+version = "0.0.7"
+
+publishOnCentral {
+    projectDescription.set("Automerge is a JSON-like data structure that can be modified concurrently by different users, and merged again automatically.")
+    projectLongName.set("Automerge for Java")
+    projectUrl.set("https://automerge.org")
+    licenseName.set("MIT")
+    licenseUrl.set("https://opensource.org/licenses/MIT")
+    scmConnection.set("scm:git:git://github.com/automerge/automerge-java.git")
+}
 
 repositories {
     mavenCentral()
@@ -358,31 +367,15 @@ tasks.named("sourcesJar") {
 
 publishing {
     publications {
-        create<MavenPublication>("mavenJava") {
-            groupId = "org.automerge"
+        withType<MavenPublication> {
             artifactId = "automerge"
-            version = project.version.toString()
-            from(components["java"])
             pom {
-                name.set("automerge")
-                description.set("Automerge is a JSON-like data structure that can be modified concurrently by different users, and merged again automatically.")
-                url.set("automerge.org")
-                licenses {
-                    license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
                 developers {
                     developer {
                         id.set("alex")
                         name.set("Alex Good")
                         email.set("alex@memoryandthought.me")
                     }
-                }
-                scm {
-                    connection.set("scm:git:git://github.com/automerge/automerge-java.git")
-                    url.set("https://github.com/automerge/automerge-java")
                 }
                 // By default the "androidnative" dependency is rendered to the POM as an optional dependency.
                 // The dependency is an AAR though, not a JAR and this is not added to the POM. This means
@@ -405,7 +398,7 @@ publishing {
                                 else -> null
                             }
                         }
-                        children.first{
+                        children.firstOrNull {
                             it.name() == xmlName("artifactId")
                         }?.let {
                             return (it.value() as groovy.util.NodeList).text()
@@ -413,20 +406,13 @@ publishing {
                         return null
                     }
                     if (dependenciesNode != null && dependenciesNode is groovy.util.Node) {
-                        val depNode = dependenciesNode.children().first {
-                            it is groovy.util.Node && artifactId(it) == "androidnative"
-                        } as groovy.util.Node
-                        depNode.appendNode(xmlName("type"), "aar")
+                        // Find the android dependency if it exists (artifactId is "android" in the project)
+                        val depNode = dependenciesNode.children().firstOrNull {
+                            it is groovy.util.Node && artifactId(it) == "android"
+                        } as? groovy.util.Node
+                        // Only add the type if the dependency exists
+                        depNode?.appendNode(xmlName("type"), "aar")
                     }
-                }
-            }
-        }
-        repositories {
-            maven {
-                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-                credentials {
-                    username = project.findProperty("ossrhUsername")?.toString() ?: System.getenv("OSSRH_USERNAME")
-                    password = project.findProperty("ossrhPassword")?.toString() ?: System.getenv("OSSRH_PASSWORD")
                 }
             }
         }
@@ -434,6 +420,14 @@ publishing {
 }
 
 signing {
-    sign(publishing.publications["mavenJava"])
-    useGpgCmd()
+    // For CI: use in-memory keys from environment
+    val signingKey: String? = System.getenv("SIGNING_KEY")
+    val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
+
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    } else {
+        // For local: use GPG agent
+        useGpgCmd()
+    }
 }
