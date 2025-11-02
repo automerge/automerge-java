@@ -1,0 +1,180 @@
+name: Release to Maven Central
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v0.0.8
+  workflow_dispatch:  # Allow manual trigger for testing
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.0.8)'
+        required: true
+        type: string
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Remove 'v' prefix from tag
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+
+      - name: Verify version consistency
+        run: |
+          # Use Gradle task to verify lib and android versions match the release tag
+          ./gradlew verifyVersionConsistency -PexpectedVersion=${{ steps.version.outputs.version }}
+
+      - name: Check if version exists on Maven Central
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          JAR_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://repo1.maven.org/maven2/org/automerge/automerge/$VERSION/automerge-$VERSION.pom")
+
+          if [ "$JAR_STATUS" = "200" ]; then
+            echo "❌ Version $VERSION already published to Maven Central"
+            echo "   Cannot republish the same version"
+            exit 1
+          fi
+
+          echo "✅ Version $VERSION is available for publishing"
+
+  build-jar:
+    needs: validate
+    uses: ./.github/workflows/build-jar.yaml
+    secrets: inherit
+
+  build-aar:
+    needs: validate
+    uses: ./.github/workflows/build-aar.yaml
+    secrets: inherit
+
+  publish:
+    name: Publish to Maven Central
+    needs: [validate, build-jar, build-aar]
+    runs-on: ubuntu-latest
+    environment: release  # Requires manual approval
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: automerge-jar
+          path: lib/build/libs/
+
+      - name: Download AAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: automerge-aar
+          path: android/build/outputs/aar/
+
+      - name: Verify artifacts
+        run: |
+          echo "=== JAR Artifact ==="
+          ls -lh lib/build/libs/
+
+          echo ""
+          echo "=== AAR Artifact ==="
+          ls -lh android/build/outputs/aar/
+
+      - name: Create dummy local.properties
+        run: |
+          echo 'sdk.dir=/fake' >> local.properties
+          echo 'ndkPath=/fake' >> local.properties
+          echo 'aarchLinkerPath=/fake' >> local.properties
+          echo 'win64LinkerPath=/fake' >> local.properties
+          echo 'win32LinkerPath=/fake' >> local.properties
+          echo 'aarchWinLinkerPath=/fake' >> local.properties
+          echo 'x86_64LinuxLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLdPath=/fake' >> local.properties
+          echo 'x86_64DarwinLinkerPath=/fake' >> local.properties
+          echo 'x86_64DarwinLdPath=/fake' >> local.properties
+
+      - name: Publish to Maven Central Portal
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          # The publish-on-central plugin provides these tasks:
+          # 1. publishAllPublicationsToProjectLocalRepository - stages locally
+          # 2. zipMavenCentralPortalPublication - creates deployment bundle
+          # 3. releaseMavenCentralPortalPublication - uploads and releases to Portal
+
+          echo "=== Publishing to Maven Central Portal ==="
+          ./gradlew \
+            publishAllPublicationsToProjectLocalRepository \
+            zipMavenCentralPortalPublication \
+            releaseMavenCentralPortalPublication \
+            -Psdk.dir="${ANDROID_SDK_ROOT}" \
+            -PndkPath=/fake \
+            --no-daemon \
+            --info
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ needs.validate.outputs.version }}
+          body: |
+            ## Maven Coordinates
+
+            **Gradle:**
+            ```kotlin
+            implementation("org.automerge:automerge:${{ needs.validate.outputs.version }}")
+            ```
+
+            **Maven:**
+            ```xml
+            <dependency>
+              <groupId>org.automerge</groupId>
+              <artifactId>automerge</artifactId>
+              <version>${{ needs.validate.outputs.version }}</version>
+            </dependency>
+            ```
+
+            ## Verification
+
+            Artifacts will be available on Maven Central within 10-30 minutes:
+            - JAR: https://repo1.maven.org/maven2/org/automerge/automerge/${{ needs.validate.outputs.version }}/
+            - AAR: https://repo1.maven.org/maven2/org/automerge/androidnative/${{ needs.validate.outputs.version }}/
+
+            ## Changes
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          files: |
+            lib/build/libs/automerge-*.jar
+            android/build/outputs/aar/android-release.aar
+          draft: false
+          prerelease: false
