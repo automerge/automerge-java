@@ -1,3 +1,13 @@
+## 0.0.8
+
+* Update the rust `automerge` library to `0.7.1`. This dramatically improves
+  memory use as well as containing many bug fixes.
+* Add support for windows ARM
+* Fix bug where ARM libraries for Linux were not loaded correctly
+* Fix a bug where some methods would return nonsensical results on windows
+* Support Java 8
+* Fix a bug where generating patches which contained conflicts could crash
+
 ## 0.0.7
 
 * Update the rust `automerge` library to 0.5.7. This introduces some performance

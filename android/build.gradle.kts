@@ -51,7 +51,7 @@ repositories {
 }
 
 group = "org.automerge"
-version = "0.0.7"
+version = "0.0.8"
 
 publishOnCentral {
     projectDescription.set("Shared libraries for automerge on android")

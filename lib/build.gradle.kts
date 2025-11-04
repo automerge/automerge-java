@@ -72,7 +72,7 @@ spotless {
 }
 
 group = "org.automerge"
-version = "0.0.7"
+version = "0.0.8"
 
 publishOnCentral {
     projectDescription.set("Automerge is a JSON-like data structure that can be modified concurrently by different users, and merged again automatically.")
