@@ -246,7 +246,7 @@ class TestPatches {
 	}
 
 	@Test
-	public void testFlagConflictMap() {
+	public void testConflictedPutInMap() {
 		Document doc1 = new Document("bbbb".getBytes());
 		Document doc2 = new Document("aaaa".getBytes());
 		try (Transaction tx = doc1.startTransaction()) {
@@ -271,7 +271,31 @@ class TestPatches {
 	}
 
 	@Test
-	public void testFlagConflictList() {
+	public void testFlagConflictMap() {
+		Document doc1 = new Document("bbbb".getBytes());
+		Document doc2 = new Document("aaaa".getBytes());
+		try (Transaction tx = doc1.startTransaction()) {
+			tx.set(ObjectId.ROOT, "key", "value_1");
+			tx.commit();
+		}
+		try (Transaction tx = doc2.startTransaction()) {
+			tx.set(ObjectId.ROOT, "key", "value_2");
+			tx.commit();
+		}
+		PatchLog patchLog = new PatchLog();
+		doc1.merge(doc2, patchLog);
+		List<Patch> patches = doc1.makePatches(patchLog);
+
+		Assertions.assertEquals(patches.size(), 1);
+		Patch patch = patches.get(0);
+		Assertions.assertEquals(patch.getObj(), ObjectId.ROOT);
+		Assertions.assertEquals(patch.getPath(), emptyPath());
+
+		PatchAction.FlagConflict action = (PatchAction.FlagConflict) patch.getAction();
+	}
+
+	@Test
+	public void testConflictedPutInList() {
 		Document doc1 = new Document("bbbb".getBytes());
 		ObjectId list;
 		try (Transaction tx = doc1.startTransaction()) {
@@ -301,6 +325,38 @@ class TestPatches {
 
 		PatchAction.PutList action = (PatchAction.PutList) patch.getAction();
 		Assertions.assertTrue(action.isConflict());
+	}
+
+	@Test
+	public void testFlagConflictList() {
+		Document doc1 = new Document("bbbb".getBytes());
+		ObjectId list;
+		try (Transaction tx = doc1.startTransaction()) {
+			list = tx.set(ObjectId.ROOT, "list", ObjectType.LIST);
+			tx.insert(list, 0, NewValue.NULL);
+			tx.commit();
+		}
+
+		Document doc2 = doc1.fork("aaaa".getBytes());
+		try (Transaction tx = doc1.startTransaction()) {
+			tx.set(list, 0, "value_2");
+			tx.commit();
+		}
+		try (Transaction tx = doc2.startTransaction()) {
+			tx.set(list, 0, "value_1");
+			tx.commit();
+		}
+
+		PatchLog patchLog = new PatchLog();
+		doc1.merge(doc2, patchLog);
+		List<Patch> patches = doc1.makePatches(patchLog);
+
+		Assertions.assertEquals(patches.size(), 1);
+		Patch patch = patches.get(0);
+		Assertions.assertEquals(patch.getObj(), list);
+		Assertions.assertEquals(patch.getPath(), PathBuilder.root("list").build());
+
+		PatchAction.FlagConflict action = (PatchAction.FlagConflict) patch.getAction();
 	}
 
 	@Test

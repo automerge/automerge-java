@@ -239,7 +239,7 @@ public abstract class PatchAction {
 	}
 
 	/** A property which was already in the document is now conflicted */
-	public static class FlagConflict {
+	public static class FlagConflict extends PatchAction {
 		private final Prop property;
 
 		protected FlagConflict(Prop property) {

@@ -117,8 +117,8 @@ fn to_jni_patch<'a>(
             let jprop = prop_to_java(env, &prop)?;
             env.new_object(
                 FLAG_CONFLICT_CLASS,
-                format!("(L{PROP_CLASS};J)V"),
-                &[(&jprop).into(), 0.into()],
+                format!("(L{PROP_CLASS};)V"),
+                &[(&jprop).into()],
             )?
         }
     };
