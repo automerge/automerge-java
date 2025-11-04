@@ -130,11 +130,19 @@ publishing {
 
 signing {
     // For CI: use in-memory keys from environment
+    val signingKeyId: String? = System.getenv("SIGNING_KEY_ID")
     val signingKey: String? = System.getenv("SIGNING_KEY")
     val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
 
     if (signingKey != null && signingPassword != null) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
+        if (signingKeyId != null) {
+            // Use 3-parameter version for subkeys (requires Gradle 6.0+)
+            // See: https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.plugins.signing/-signing-extension/use-in-memory-pgp-keys.html
+            useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        } else {
+            // Use 2-parameter version for master keys
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        }
     } else {
         // For local: use GPG agent
         useGpgCmd()

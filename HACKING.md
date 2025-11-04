@@ -279,14 +279,21 @@ Both `lib/build.gradle.kts` and `android/build.gradle.kts` use the `publish-on-c
    - Recommended: Generate a user token instead of using password
    - Generate at: https://central.sonatype.com/account
 
-3. **`SIGNING_KEY`**: Base64-encoded GPG private key
+3. **`SIGNING_KEY_ID`**: GPG key ID (required if using a subkey)
    ```bash
-   # Export your GPG key
-   gpg --export-secret-keys --armor YOUR_KEY_ID | base64 | pbcopy
-   # Linux: | base64 -w0 | xclip -selection clipboard
+   # Get your key ID (use the signing subkey ID, not the master key)
+   gpg --list-secret-keys --keyid-format=long
+   # Use the 16-character hex ID after 'rsa4096/' or 'ed25519/'
    ```
 
-4. **`SIGNING_PASSWORD`**: Passphrase for the GPG key
+4. **`SIGNING_KEY`**: ASCII-armored GPG private key
+   ```bash
+   # Export your GPG key (use the subkey ID if applicable)
+   gpg --export-secret-keys --armor YOUR_KEY_ID
+   # Copy the entire output including the BEGIN/END lines
+   ```
+
+5. **`SIGNING_PASSWORD`**: Passphrase for the GPG key
 
 ### Performing a Release
 

@@ -34,6 +34,20 @@ jobs:
         with:
           cache-read-only: false
 
+      - name: Create dummy local.properties
+        run: |
+          echo 'sdk.dir=/fake' >> local.properties
+          echo 'ndkPath=/fake' >> local.properties
+          echo 'aarchLinkerPath=/fake' >> local.properties
+          echo 'win64LinkerPath=/fake' >> local.properties
+          echo 'win32LinkerPath=/fake' >> local.properties
+          echo 'aarchWinLinkerPath=/fake' >> local.properties
+          echo 'x86_64LinuxLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLinkerPath=/fake' >> local.properties
+          echo 'aarchDarwinLdPath=/fake' >> local.properties
+          echo 'x86_64DarwinLinkerPath=/fake' >> local.properties
+          echo 'x86_64DarwinLdPath=/fake' >> local.properties
+
       - name: Extract version from tag
         id: version
         run: |
@@ -135,8 +149,9 @@ jobs:
 
       - name: Publish to Maven Central Portal
         env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_CENTRAL_PORTAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_PORTAL_USERNAME }}
+          MAVEN_CENTRAL_PORTAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PORTAL_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
@@ -144,6 +159,10 @@ jobs:
           # 1. publishAllPublicationsToProjectLocalRepository - stages locally
           # 2. zipMavenCentralPortalPublication - creates deployment bundle
           # 3. releaseMavenCentralPortalPublication - uploads and releases to Portal
+          #
+          # We exclude processResources tasks because the JAR and AAR artifacts
+          # are already built and downloaded from previous jobs. This avoids
+          # unnecessary Rust compilation for all target platforms.
 
           echo "=== Publishing to Maven Central Portal ==="
           ./gradlew \
