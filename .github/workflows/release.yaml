@@ -27,6 +27,12 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
 
       - name: Extract version from tag
         id: version
@@ -85,6 +91,12 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
 
       - name: Download JAR artifact
         uses: actions/download-artifact@v4
@@ -138,8 +150,10 @@ jobs:
             publishAllPublicationsToProjectLocalRepository \
             zipMavenCentralPortalPublication \
             releaseMavenCentralPortalPublication \
-            -Psdk.dir="${ANDROID_SDK_ROOT}" \
-            -PndkPath=/fake \
+            -x lib:processResources \
+            -x lib:jar \
+            -x android:copyJniLibs \
+            -x android:bundleReleaseAar \
             --no-daemon \
             --info
 

@@ -12,11 +12,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache Rust build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            rust/crossbuild
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-rust-aar-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml', 'rust/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-aar-
+
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: "temurin"
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
 
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
