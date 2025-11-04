@@ -292,7 +292,7 @@ Both `lib/build.gradle.kts` and `android/build.gradle.kts` use the `publish-on-c
 
 #### 1. Prepare the Release
 
-Update version in both Gradle build files:
+Update version in the Gradle build files:
 
 ```bash
 # lib/build.gradle.kts
@@ -300,6 +300,9 @@ version = "0.0.8"
 
 # android/build.gradle.kts
 version = "0.0.8"
+
+# android-test-app/build.gradle.kts
+var projectVersion = "0.0.8"
 ```
 
 Note: The Rust `Cargo.toml` version is only used for the native library filename suffix and doesn't need to match the Maven version.

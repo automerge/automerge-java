@@ -2,6 +2,8 @@ plugins {
     id("com.android.application") version "8.13.0"
 }
 
+var projectVersion = "0.0.7"
+
 android {
     namespace = "org.automerge.testapp"
     compileSdkVersion = "android-26"
@@ -43,7 +45,7 @@ dependencies {
     if (useBuiltArtifacts) {
         // CI mode: Use built JAR and AAR as file dependencies
         // This tests the actual artifacts that would be published
-        implementation(files("../lib/build/libs/automerge-0.0.7.jar"))
+        implementation(files("../lib/build/libs/automerge-${projectVersion}.jar"))
         implementation(files("../android/build/outputs/aar/android-release.aar"))
     } else {
         // Local dev mode: Use project dependencies
