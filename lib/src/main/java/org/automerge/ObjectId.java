@@ -6,7 +6,7 @@ package org.automerge;
  * <p>
  * Composite objects are objects that contain other objects, such as lists and
  * maps. The ID of the object is used to read and write to the object. The root
- * object in automerge is a map, the ID of whic his {@link ObjectId#ROOT}.
+ * object in automerge is a map, the ID of which is {@link ObjectId#ROOT}.
  */
 public class ObjectId {
     private byte[] raw;
