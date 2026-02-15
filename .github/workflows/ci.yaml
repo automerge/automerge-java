@@ -178,14 +178,14 @@ jobs:
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_FOR_BUILD }}
         with:
-          arguments: lib:assemble websocket:assemble -Penv=dev --info
+          arguments: lib:assemble websocket:assemble automerge-kotlin:assemble automerge-kotlin:dokkaGeneratePublicationHtml -Penv=dev --info
 
       - name: Test with Java 21 runtime
         uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629
         env:
           JAVA_HOME: ${{ env.JAVA_HOME_FOR_BUILD }}
         with:
-          arguments: lib:test websocket:test -Penv=dev --info
+          arguments: lib:test websocket:test automerge-kotlin:test -Penv=dev --info
 
       - name: Test with Java 8 runtime (backward compatibility)
         uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629

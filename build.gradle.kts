@@ -1,6 +1,7 @@
 plugins {
     id("com.diffplug.spotless") version "6.18.0" apply false
     id("org.danilopianini.publish-on-central") version "9.1.7" apply false
+    id("org.jetbrains.dokka") version "2.0.0" apply false
 }
 
 fun readCargoVersion(): String {

@@ -15,11 +15,13 @@ pluginManagement {
     }
     plugins {
         id("com.android.library")
+        kotlin("jvm") version "2.2.0"
     }
 }
 
 rootProject.name = "automerge-java"
 include("lib")
 include("websocket")
+include("automerge-kotlin")
 include("android")
 include("android-test-app")
