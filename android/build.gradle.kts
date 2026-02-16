@@ -37,6 +37,7 @@ for (android in androids) {
         environment("CC", "${toolChainLocation}/clang")
         environment("CXX", "${toolChainLocation}/clang++")
         environment("CARGO_TARGET_${linker}_LINKER", "${toolChainLocation}/${android.abiName}${ndkApiLevel}-clang")
+        environment("CARGO_TARGET_${linker}_RUSTFLAGS", "-C link-arg=-Wl,-z,max-page-size=16384")
         environment("CARGO_BUILD_BUILD_DIR", "../rust/crossbuild/${android.rustTarget}")
         commandLine = mutableListOf("cargo", "build", "--profile", "release", "--target", android.rustTarget)
         outputs.file("../rust/target/$android/release/libautomerge_jni.so")
