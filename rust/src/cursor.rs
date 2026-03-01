@@ -5,6 +5,8 @@ use jni::{
     JNIEnv,
 };
 
+use crate::interop::throw_or_fatal;
+
 #[derive(Debug)]
 pub struct Cursor(automerge::Cursor);
 
@@ -80,14 +82,16 @@ pub unsafe extern "C" fn cursorFromString(
     let jstring = &JString::from_raw(s);
     let s = env.get_string(jstring).unwrap();
     let Ok(s) = s.to_str() else {
-        env.throw_new(
+        throw_or_fatal(
+            &mut env,
             "java/lang/IllegalArgumentException",
             "invalid cursor string",
         );
         return JObject::null().into_raw();
     };
     let Ok(cursor) = automerge::Cursor::try_from(s) else {
-        env.throw_new(
+        throw_or_fatal(
+            &mut env,
             "java/lang/IllegalArgumentException",
             "invalid cursor string",
         );
@@ -107,7 +111,11 @@ pub unsafe extern "C" fn cursorFromBytes(
     let bytes = env.convert_byte_array(&jarr).unwrap();
     let Ok(cursor) = automerge::Cursor::try_from(bytes) else {
         // throw IllegalArgumentException
-        env.throw_new("java/lang/IllegalArgumentException", "invalid cursor bytes");
+        throw_or_fatal(
+            &mut env,
+            "java/lang/IllegalArgumentException",
+            "invalid cursor bytes",
+        );
         return JObject::null().into_raw();
     };
     Cursor::from(cursor).into_raw(&mut env).unwrap()

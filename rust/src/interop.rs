@@ -3,8 +3,9 @@ use automerge::{self as am, transaction::Transaction, ChangeHash};
 use jni::{
     objects::{JObject, JObjectArray, JPrimitiveArray, JValue},
     sys::{jbyteArray, jobject},
-    JNIEnv,
 };
+
+use crate::AUTOMERGE_EXCEPTION;
 
 pub(crate) const CHANGEHASH_CLASS: &str = am_classname!("ChangeHash");
 
@@ -143,4 +144,19 @@ pub(crate) fn changehash_to_jobject<'local>(
     env.set_field(&jhash, "hash", "[B", (&byte_array).into())
         .unwrap();
     Ok(jhash)
+}
+
+pub(crate) fn throw_amg_exc_or_fatal<S: AsRef<str>>(env: &mut jni::JNIEnv, msg: S) {
+    throw_or_fatal(env, AUTOMERGE_EXCEPTION, msg);
+}
+
+pub(crate) fn throw_or_fatal<S: AsRef<str>>(
+    env: &mut jni::JNIEnv,
+    exc_class: &'static str,
+    msg: S,
+) {
+    if env.throw_new(exc_class, msg.as_ref()).is_err() {
+        eprintln!("Failed to throw exception: {}", msg.as_ref());
+        env.fatal_error(format!("Failed to throw exception: {}", msg.as_ref()));
+    }
 }

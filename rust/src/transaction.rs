@@ -1,7 +1,7 @@
 use am::transaction::Transactable;
 use automerge as am;
 use automerge_jni_macros::jni_fn;
-use jni::{objects::JObject, sys::jobject};
+use jni::sys::jobject;
 
 use crate::{
     interop::{changehash_to_jobject, AsPointerObj},
@@ -115,12 +115,4 @@ pub unsafe extern "C" fn rollbackTransaction(
     tx_pointer: jobject,
 ) {
     do_owned_tx_op(&mut env, tx_pointer, Rollback);
-}
-
-#[derive(Debug, thiserror::Error)]
-enum OpError {
-    #[error(transparent)]
-    Automerge(#[from] am::AutomergeError),
-    #[error(transparent)]
-    Jni(#[from] jni::errors::Error),
 }

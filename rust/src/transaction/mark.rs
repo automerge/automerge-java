@@ -8,8 +8,8 @@ use jni::{
 
 use crate::{
     expand_mark,
+    interop::throw_amg_exc_or_fatal,
     obj_id::{obj_id_or_throw, JavaObjId},
-    AUTOMERGE_EXCEPTION,
 };
 
 use super::{do_tx_op, TransactionOp};
@@ -37,7 +37,7 @@ impl TransactionOp for MarkOp {
             Ok(_) => {}
             Err(e) => {
                 let msg = format!("Error marking: {e}");
-                env.throw_new(AUTOMERGE_EXCEPTION, msg);
+                throw_amg_exc_or_fatal(env, msg);
             }
         }
     }
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn markUint(
     let int = match u64::try_from(value) {
         Ok(i) => am::ScalarValue::Uint(i),
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "uint value must not be negative");
+            throw_amg_exc_or_fatal(&mut env, "uint value must not be negative");
             return;
         }
     };
@@ -324,7 +324,7 @@ impl TransactionOp for Unmark {
             Ok(_) => {}
             Err(e) => {
                 let msg = format!("Error marking: {e}");
-                env.throw_new(AUTOMERGE_EXCEPTION, msg);
+                throw_amg_exc_or_fatal(env, msg);
             }
         }
     }

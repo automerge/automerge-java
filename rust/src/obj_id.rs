@@ -96,7 +96,8 @@ macro_rules! obj_id_or_throw {
         match JavaObjId::from_raw($env, $obj_id) {
             Ok(Some(id)) => id,
             Ok(None) => {
-                $env.throw_new(
+                crate::interop::throw_or_fatal(
+                    $env,
                     "java/lang/IllegalArgumentException",
                     "Object ID cannot be null",
                 );
@@ -104,8 +105,7 @@ macro_rules! obj_id_or_throw {
                 return $returning;
             }
             Err(e) => {
-                use crate::AUTOMERGE_EXCEPTION;
-                $env.throw_new(AUTOMERGE_EXCEPTION, format!("{}", e));
+                crate::interop::throw_amg_exc_or_fatal($env, e.to_string());
                 #[allow(clippy::unused_unit)]
                 return $returning;
             }
@@ -113,6 +113,8 @@ macro_rules! obj_id_or_throw {
     };
 }
 pub(crate) use obj_id_or_throw;
+
+use crate::interop::throw_or_fatal;
 
 #[no_mangle]
 #[jni_fn]
@@ -174,7 +176,8 @@ pub unsafe extern "C" fn objectIdsEqual(
     let right = JavaObjId::from_raw(&mut env, right).unwrap();
     match (left, right) {
         (None, _) | (_, None) => {
-            env.throw_new(
+            throw_or_fatal(
+                &mut env,
                 "java/lang/IllegalArgumentException",
                 "Object ID cannot be null",
             );

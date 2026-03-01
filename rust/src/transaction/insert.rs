@@ -7,9 +7,9 @@ use jni::{
 };
 
 use crate::{
+    interop::throw_amg_exc_or_fatal,
     obj_id::{obj_id_or_throw, JavaObjId},
     obj_type::JavaObjType,
-    AUTOMERGE_EXCEPTION,
 };
 
 use super::{do_tx_op, TransactionOp};
@@ -31,14 +31,14 @@ impl TransactionOp for InsertOp<am::ScalarValue> {
         let idx = match usize::try_from(self.index) {
             Ok(i) => i,
             Err(_) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, "index cannot be negative");
+                throw_amg_exc_or_fatal(env, "index cannot be negative");
                 return;
             }
         };
         match tx.insert(obj, idx, self.value) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+                throw_amg_exc_or_fatal(env, e.to_string());
             }
         }
     }
@@ -56,14 +56,14 @@ impl TransactionOp for InsertOp<ObjType> {
         let idx = match usize::try_from(self.index) {
             Ok(i) => i,
             Err(_) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, "index cannot be negative");
+                throw_amg_exc_or_fatal(env, "index cannot be negative");
                 return JObject::null().into_raw();
             }
         };
         let value = match tx.insert_object(obj, idx, self.value) {
             Ok(v) => v,
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+                throw_amg_exc_or_fatal(env, e.to_string());
                 return JObject::null().into_raw();
             }
         };
@@ -149,7 +149,7 @@ pub unsafe extern "C" fn insertUintInList(
     let int = match u64::try_from(value) {
         Ok(i) => i,
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "uint value must not be negative");
+            throw_amg_exc_or_fatal(&mut env, "uint value must not be negative");
             return;
         }
     };
