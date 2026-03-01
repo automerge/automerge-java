@@ -10,9 +10,8 @@ use jni::{
 };
 
 use crate::{
-    interop::{changehash_to_jobject, AsPointerObj, CHANGEHASH_CLASS},
+    interop::{changehash_to_jobject, throw_amg_exc_or_fatal, AsPointerObj, CHANGEHASH_CLASS},
     java_option::{make_empty_option, make_optional},
-    AUTOMERGE_EXCEPTION,
 };
 
 #[no_mangle]
@@ -60,14 +59,14 @@ pub unsafe extern "C" fn receiveSyncMessage(
     let message = match Message::decode(&message_bytes) {
         Ok(m) => m,
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+            throw_amg_exc_or_fatal(&mut env, e.to_string());
             return;
         }
     };
     match doc.receive_sync_message(state, message) {
         Ok(()) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+            throw_amg_exc_or_fatal(&mut env, e.to_string());
         }
     }
 }
@@ -90,14 +89,14 @@ pub unsafe extern "C" fn receiveSyncMessageLogPatches(
     let message = match Message::decode(&message_bytes) {
         Ok(m) => m,
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+            throw_amg_exc_or_fatal(&mut env, e.to_string());
             return;
         }
     };
     match doc.receive_sync_message_log_patches(state, message, patch_log) {
         Ok(_) => {}
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+            throw_amg_exc_or_fatal(&mut env, e.to_string());
         }
     }
 }
@@ -128,7 +127,7 @@ pub unsafe extern "C" fn decodeSyncState(
     match SyncState::decode(&bytes) {
         Ok(state) => state.to_pointer_obj(&mut env).unwrap().into_raw(),
         Err(e) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+            throw_amg_exc_or_fatal(&mut env, e.to_string());
             JObject::null().into_raw()
         }
     }

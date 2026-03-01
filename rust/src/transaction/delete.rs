@@ -6,8 +6,8 @@ use jni::{
 };
 
 use crate::{
+    interop::throw_amg_exc_or_fatal,
     obj_id::{obj_id_or_throw, JavaObjId},
-    AUTOMERGE_EXCEPTION,
 };
 
 use super::{do_tx_op, TransactionOp};
@@ -25,7 +25,7 @@ impl TransactionOp for DeleteOp {
         match tx.delete(obj, self.key) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+                throw_amg_exc_or_fatal(env, e.to_string());
             }
         }
     }
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn deleteInList<'local>(
     let idx = match usize::try_from(idx) {
         Ok(idx) => idx,
         Err(_) => {
-            env.throw_new(AUTOMERGE_EXCEPTION, "Index out of bounds");
+            throw_amg_exc_or_fatal(&mut env, "Index out of bounds");
             return;
         }
     };

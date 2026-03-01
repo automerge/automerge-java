@@ -5,7 +5,9 @@ use jni::{
     sys::{jlong, jobject},
 };
 
-use crate::{obj_id::obj_id_or_throw, JavaObjId, AUTOMERGE_EXCEPTION};
+use crate::{
+    interop::throw_amg_exc_or_fatal, obj_id::obj_id_or_throw, JavaObjId, AUTOMERGE_EXCEPTION,
+};
 
 use super::{do_tx_op, TransactionOp};
 
@@ -38,7 +40,7 @@ impl TransactionOp for SpliceOp {
         match tx.splice(obj, self.index, self.delete, iter) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+                throw_amg_exc_or_fatal(env, e.to_string());
             }
         }
     }

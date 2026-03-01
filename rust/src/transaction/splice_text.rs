@@ -5,8 +5,8 @@ use jni::{
 };
 
 use crate::{
+    interop::throw_amg_exc_or_fatal,
     obj_id::{obj_id_or_throw, JavaObjId},
-    AUTOMERGE_EXCEPTION,
 };
 
 use super::{do_tx_op, TransactionOp};
@@ -31,7 +31,7 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
         match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
             Ok(_) => {}
             Err(e) => {
-                env.throw_new(AUTOMERGE_EXCEPTION, e.to_string());
+                throw_amg_exc_or_fatal(env, e.to_string());
             }
         }
     }
