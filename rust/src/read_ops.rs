@@ -1,5 +1,5 @@
 use automerge::{
-    transaction::{Transactable, Transaction},
+    transaction::{OwnedTransaction, Transactable},
     Automerge, ReadDoc,
 };
 
@@ -13,8 +13,8 @@ impl ReadOps for Automerge {
     }
 }
 
-impl<'a> ReadOps for Transaction<'a> {
+impl ReadOps for OwnedTransaction {
     fn heads(&self) -> Vec<automerge::ChangeHash> {
-        Transaction::base_heads(self)
+        OwnedTransaction::base_heads(self)
     }
 }

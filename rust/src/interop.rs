@@ -1,5 +1,5 @@
 use am::PatchLog;
-use automerge::{self as am, transaction::Transaction, ChangeHash};
+use automerge::{self as am, ChangeHash};
 use jni::{
     objects::{JObject, JObjectArray, JPrimitiveArray, JValue},
     sys::{jbyteArray, jobject},
@@ -43,6 +43,14 @@ pub(crate) trait AsPointerObj: Sized {
         Ok(result)
     }
 
+    fn set_pointer<'local>(self: Self, env: &mut jni::JNIEnv<'local>, pointer_obj: jobject) -> Result<(),  jni::errors::Error> {
+        let boxed = Box::new(self);
+        let obj = unsafe { JObject::from_raw(pointer_obj) };
+        let ptr = JValue::from(Box::into_raw(boxed) as i64);
+        env.set_field(&obj, "pointer", "J", ptr)?;
+        Ok(())
+    }
+
     fn to_pointer_obj<'local>(
         self,
         env: &mut jni::JNIEnv<'local>,
@@ -72,8 +80,8 @@ impl AsPointerObj for automerge::Automerge {
     }
 }
 
-impl<'a> AsPointerObj for automerge::transaction::Transaction<'a> {
-    type EnvRef<'b> = Transaction<'a>;
+impl<'a> AsPointerObj for automerge::transaction::OwnedTransaction {
+    type EnvRef<'b> = automerge::transaction::OwnedTransaction;
     fn classname() -> &'static str {
         am_classname!("AutomergeSys$TransactionPointer")
     }

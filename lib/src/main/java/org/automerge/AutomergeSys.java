@@ -281,9 +281,9 @@ class AutomergeSys {
             ExpandMark expand);
 
     // Transactions
-    public static native CommitResult commitTransaction(TransactionPointer tx);
+    public static native CommitResult commitTransaction(TransactionPointer tx, DocPointer doc);
 
-    public static native void rollbackTransaction(TransactionPointer tx);
+    public static native void rollbackTransaction(TransactionPointer tx, DocPointer doc);
 
     // Heads
     public static native ChangeHash[] getHeadsInDoc(DocPointer doc);

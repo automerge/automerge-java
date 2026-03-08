@@ -17,7 +17,7 @@ use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
 use crate::{interop::AsPointerObj, read_ops::ReadOps};
 use automerge as am;
-use automerge::transaction::Transaction as AmTransaction;
+use automerge::transaction::OwnedTransaction;
 
 mod cursor;
 mod get;
@@ -480,7 +480,7 @@ unsafe fn maybe_heads(
 
 // Existential type over all implementations of ReadOps
 enum SomeRead<'a> {
-    Transaction(&'a mut automerge::transaction::Transaction<'a>),
+    Transaction(&'a OwnedTransaction),
     Doc(&'a automerge::Automerge),
 }
 
@@ -496,7 +496,7 @@ impl<'a> SomeRead<'a> {
         env: &mut jni::JNIEnv<'a>,
         pointer: jobject,
     ) -> SomeRead<'a> {
-        let tx = AmTransaction::<'a>::from_pointer_obj(env, pointer).unwrap();
+        let tx = OwnedTransaction::from_pointer_obj(env, pointer).unwrap();
         Self::Transaction(tx)
     }
 
@@ -836,7 +836,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
 impl<'a> ReadOps for SomeRead<'a> {
     fn heads(&self) -> Vec<am::ChangeHash> {
         match self {
-            SomeRead::Transaction(tx) => tx.heads(),
+            SomeRead::Transaction(tx) => tx.get_heads(),
             SomeRead::Doc(doc) => doc.heads(),
         }
     }
