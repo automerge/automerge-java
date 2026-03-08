@@ -3,6 +3,7 @@ package org.automerge;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.automerge.AutomergeSys.DocPointer;
 
 /**
@@ -125,9 +126,7 @@ public class Document implements Read {
      * it's safe to call mutliple times.
      */
     public synchronized void free() {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         if (this.pointer.isPresent()) {
             AutomergeSys.freeDoc(this.pointer.get());
             this.pointer = Optional.empty();
@@ -159,9 +158,7 @@ public class Document implements Read {
      * @return The bytes of the saved document
      */
     public synchronized byte[] save() {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return AutomergeSys.saveDoc(this.pointer.get());
     }
 
@@ -171,9 +168,7 @@ public class Document implements Read {
      * @return The new document
      */
     public synchronized Document fork() {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return new Document(AutomergeSys.forkDoc(this.pointer.get()));
     }
 
@@ -185,9 +180,7 @@ public class Document implements Read {
      * @return The new document
      */
     public synchronized Document fork(byte[] newActor) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return new Document(AutomergeSys.forkDocWithActor(this.pointer.get(), newActor));
     }
 
@@ -199,9 +192,7 @@ public class Document implements Read {
      * @return The new document
      */
     public synchronized Document fork(ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return new Document(AutomergeSys.forkDocAt(this.pointer.get(), heads));
     }
 
@@ -215,9 +206,7 @@ public class Document implements Read {
      * @return The new document
      */
     public synchronized Document fork(ChangeHash[] heads, byte[] newActor) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return new Document(AutomergeSys.forkDocAtWithActor(this.pointer.get(), heads, newActor));
     }
 
@@ -231,9 +220,8 @@ public class Document implements Read {
      *             other document
      */
     public synchronized void merge(Document other) {
-        if (this.transactionPtr.isPresent() || other.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
+        other.requireNoTransaction();
         AutomergeSys.mergeDoc(this.pointer.get(), other.pointer.get());
     }
 
@@ -250,9 +238,8 @@ public class Document implements Read {
      *             other document
      */
     public synchronized void merge(Document other, PatchLog patchLog) {
-        if (this.transactionPtr.isPresent() || other.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
+        other.requireNoTransaction();
         patchLog.with((pointer) -> {
             AutomergeSys.mergeDocLogPatches(this.pointer.get(), other.pointer.get(), pointer);
         });
@@ -270,9 +257,7 @@ public class Document implements Read {
      * @return The encoded changes
      */
     public synchronized byte[] encodeChangesSince(ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return AutomergeSys.encodeChangesSince(this.pointer.get(), heads);
     }
 
@@ -288,9 +273,7 @@ public class Document implements Read {
      *             if the changes are not valid
      */
     public synchronized void applyEncodedChanges(byte[] changes) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         AutomergeSys.applyEncodedChanges(this.pointer.get(), changes);
     }
 
@@ -313,139 +296,105 @@ public class Document implements Read {
      *             if the changes are not valid
      */
     public synchronized void applyEncodedChanges(byte[] changes, PatchLog patchLog) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         patchLog.with((AutomergeSys.PatchLogPointer patchLogPointer) -> AutomergeSys
                 .applyEncodedChangesLogPatches(this.pointer.get(), patchLogPointer, changes));
     }
 
     public synchronized Optional<AmValue> get(ObjectId obj, String key) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getInMapInTx(this.transactionPtr.get(), obj, key);
-        } else {
-            return AutomergeSys.getInMapInDoc(this.pointer.get(), obj, key);
-        }
+        return read(
+                tx -> AutomergeSys.getInMapInTx(tx, obj, key),
+                doc -> AutomergeSys.getInMapInDoc(doc, obj, key));
     }
 
     public synchronized Optional<AmValue> get(ObjectId obj, long key) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getInListInTx(this.transactionPtr.get(), obj, key);
-        } else {
-            return AutomergeSys.getInListInDoc(this.pointer.get(), obj, key);
-        }
+        return read(
+                tx -> AutomergeSys.getInListInTx(tx, obj, key),
+                doc -> AutomergeSys.getInListInDoc(doc, obj, key));
     }
 
     public synchronized Optional<AmValue> get(ObjectId obj, String key, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAtInMapInTx(this.transactionPtr.get(), obj, key, heads);
-        } else {
-            return AutomergeSys.getAtInMapInDoc(this.pointer.get(), obj, key, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getAtInMapInTx(tx, obj, key, heads),
+                doc -> AutomergeSys.getAtInMapInDoc(doc, obj, key, heads));
     }
 
     public synchronized Optional<AmValue> get(ObjectId obj, long idx, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
-        } else {
-            return AutomergeSys.getAtInListInDoc(this.pointer.get(), obj, idx, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getAtInListInTx(tx, obj, idx, heads),
+                doc -> AutomergeSys.getAtInListInDoc(doc, obj, idx, heads));
     }
 
     public synchronized Optional<Conflicts> getAll(ObjectId obj, String key) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAllInMapInTx(this.transactionPtr.get(), obj, key);
-        } else {
-            return AutomergeSys.getAllInMapInDoc(this.pointer.get(), obj, key);
-        }
+        return read(
+                tx -> AutomergeSys.getAllInMapInTx(tx, obj, key),
+                doc -> AutomergeSys.getAllInMapInDoc(doc, obj, key));
     }
 
     public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAllInListInTx(this.transactionPtr.get(), obj, idx);
-        } else {
-            return AutomergeSys.getAllInListInDoc(this.pointer.get(), obj, idx);
-        }
+        return read(
+                tx -> AutomergeSys.getAllInListInTx(tx, obj, idx),
+                doc -> AutomergeSys.getAllInListInDoc(doc, obj, idx));
     }
 
     public synchronized Optional<Conflicts> getAll(ObjectId obj, String key, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAllAtInMapInTx(this.transactionPtr.get(), obj, key, heads);
-        } else {
-            return AutomergeSys.getAllAtInMapInDoc(this.pointer.get(), obj, key, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getAllAtInMapInTx(tx, obj, key, heads),
+                doc -> AutomergeSys.getAllAtInMapInDoc(doc, obj, key, heads));
     }
 
     public synchronized Optional<Conflicts> getAll(ObjectId obj, long idx, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getAllAtInListInTx(this.transactionPtr.get(), obj, idx, heads);
-        } else {
-            return AutomergeSys.getAllAtInListInDoc(this.pointer.get(), obj, idx, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getAllAtInListInTx(tx, obj, idx, heads),
+                doc -> AutomergeSys.getAllAtInListInDoc(doc, obj, idx, heads));
     }
 
     public synchronized Optional<String> text(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getTextInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getTextInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getTextInTx(tx, obj),
+                doc -> AutomergeSys.getTextInDoc(doc, obj));
     }
 
     public synchronized Optional<String> text(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getTextAtInTx(this.transactionPtr.get(), obj, heads);
-        } else {
-            return AutomergeSys.getTextAtInDoc(this.pointer.get(), obj, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getTextAtInTx(tx, obj, heads),
+                doc -> AutomergeSys.getTextAtInDoc(doc, obj, heads));
     }
 
     public synchronized Optional<String[]> keys(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getKeysInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getKeysInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getKeysInTx(tx, obj),
+                doc -> AutomergeSys.getKeysInDoc(doc, obj));
     }
 
     public synchronized Optional<String[]> keys(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getKeysAtInTx(this.transactionPtr.get(), obj, heads);
-        } else {
-            return AutomergeSys.getKeysAtInDoc(this.pointer.get(), obj, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getKeysAtInTx(tx, obj, heads),
+                doc -> AutomergeSys.getKeysAtInDoc(doc, obj, heads));
     }
 
     public synchronized Optional<MapEntry[]> mapEntries(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMapEntriesInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getMapEntriesInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getMapEntriesInTx(tx, obj),
+                doc -> AutomergeSys.getMapEntriesInDoc(doc, obj));
     }
 
     public synchronized Optional<MapEntry[]> mapEntries(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMapEntriesAtInTx(this.transactionPtr.get(), obj, heads);
-        } else {
-            return AutomergeSys.getMapEntriesAtInDoc(this.pointer.get(), obj, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getMapEntriesAtInTx(tx, obj, heads),
+                doc -> AutomergeSys.getMapEntriesAtInDoc(doc, obj, heads));
     }
 
     public synchronized long length(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getListLengthInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getListLengthInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getListLengthInTx(tx, obj),
+                doc -> AutomergeSys.getListLengthInDoc(doc, obj));
     }
 
     public synchronized long length(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getListLengthAtInTx(this.transactionPtr.get(), obj, heads);
-        } else {
-            return AutomergeSys.getListLengthAtInDoc(this.pointer.get(), obj, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getListLengthAtInTx(tx, obj, heads),
+                doc -> AutomergeSys.getListLengthAtInDoc(doc, obj, heads));
     }
 
     /**
@@ -462,9 +411,7 @@ public class Document implements Read {
      *             if a transaction is already in progress
      */
     public synchronized Transaction startTransaction() {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransaction(this.pointer.get());
         this.transactionPtr = Optional.of(ptr);
         return new TransactionImpl(this, ptr);
@@ -486,9 +433,7 @@ public class Document implements Read {
      *             if a transaction is already in progress
      */
     public synchronized Transaction startTransaction(PatchLog patchLog) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         AutomergeSys.PatchLogPointer patchLogPointer = patchLog.take();
         AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransactionLogPatches(this.pointer.get(),
                 patchLogPointer);
@@ -520,9 +465,7 @@ public class Document implements Read {
      *             if a transaction is already in progress
      */
     public synchronized Transaction startTransactionAt(PatchLog patchLog, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         AutomergeSys.TransactionPointer ptr = AutomergeSys.startTransactionAt(this.pointer.get(), patchLog.take(),
                 heads);
         return new TransactionImpl(this, ptr, (AutomergeSys.PatchLogPointer returnedPointer) -> {
@@ -531,53 +474,63 @@ public class Document implements Read {
     }
 
     public synchronized Optional<AmValue[]> listItems(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getListItemsInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getListItemsInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getListItemsInTx(tx, obj),
+                doc -> AutomergeSys.getListItemsInDoc(doc, obj));
     }
 
     public synchronized Optional<AmValue[]> listItems(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getListItemsAtInTx(this.transactionPtr.get(), obj, heads);
-        } else {
-            return AutomergeSys.getListItemsAtInDoc(this.pointer.get(), obj, heads);
-        }
+        return read(
+                tx -> AutomergeSys.getListItemsAtInTx(tx, obj, heads),
+                doc -> AutomergeSys.getListItemsAtInDoc(doc, obj, heads));
     }
 
     public synchronized ChangeHash[] getHeads() {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getHeadsInTx(this.transactionPtr.get());
-        } else {
-            return AutomergeSys.getHeadsInDoc(this.pointer.get());
-        }
+        return read(
+                tx -> AutomergeSys.getHeadsInTx(tx),
+                doc -> AutomergeSys.getHeadsInDoc(doc));
     }
 
     public synchronized List<Mark> marks(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMarksInTx(this.transactionPtr.get(), obj, Optional.empty());
-        } else {
-            return AutomergeSys.getMarksInDoc(this.pointer.get(), obj, Optional.empty());
-        }
+        return read(
+                tx -> AutomergeSys.getMarksInTx(tx, obj, Optional.empty()),
+                doc -> AutomergeSys.getMarksInDoc(doc, obj, Optional.empty()));
     }
 
     public synchronized List<Mark> marks(ObjectId obj, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMarksInTx(this.transactionPtr.get(), obj, Optional.of(heads));
-        } else {
-            return AutomergeSys.getMarksInDoc(this.pointer.get(), obj, Optional.of(heads));
-        }
+        return read(
+                tx -> AutomergeSys.getMarksInTx(tx, obj, Optional.of(heads)),
+                doc -> AutomergeSys.getMarksInDoc(doc, obj, Optional.of(heads)));
     }
 
     protected synchronized void clearTransaction() {
         this.transactionPtr = Optional.empty();
     }
 
-    protected synchronized Optional<byte[]> generateSyncMessage(AutomergeSys.SyncStatePointer syncState) {
+    DocPointer getDocPointer() {
+        return this.pointer.get();
+    }
+
+    /** Throw if a transaction is in progress. Used by mutating operations. */
+    private void requireNoTransaction() {
         if (this.transactionPtr.isPresent()) {
             throw new TransactionInProgress();
         }
+    }
+
+    /** Route a read operation through the transaction (if active) or the document. */
+    private <T> T read(
+            Function<AutomergeSys.TransactionPointer, T> txFn,
+            Function<DocPointer, T> docFn) {
+        if (this.transactionPtr.isPresent()) {
+            return txFn.apply(this.transactionPtr.get());
+        } else {
+            return docFn.apply(this.pointer.get());
+        }
+    }
+
+    protected synchronized Optional<byte[]> generateSyncMessage(AutomergeSys.SyncStatePointer syncState) {
+        requireNoTransaction();
         return AutomergeSys.generateSyncMessage(syncState, this.pointer.get());
     }
 
@@ -594,9 +547,7 @@ public class Document implements Read {
     }
 
     protected synchronized void receiveSyncMessage(AutomergeSys.SyncStatePointer syncState, byte[] message) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         AutomergeSys.receiveSyncMessage(syncState, this.pointer.get(), message);
     }
 
@@ -635,9 +586,7 @@ public class Document implements Read {
     }
 
     public synchronized List<Patch> makePatches(PatchLog patchLog) {
-        if (this.transactionPtr.isPresent()) {
-            throw new TransactionInProgress();
-        }
+        requireNoTransaction();
         return patchLog.with((AutomergeSys.PatchLogPointer p) -> AutomergeSys.makePatches(this.pointer.get(), p));
     }
 
@@ -663,65 +612,50 @@ public class Document implements Read {
 
     @Override
     public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.empty());
-        } else {
-            return AutomergeSys.getMarksAtIndexInDoc(this.pointer.get(), obj, index, Optional.empty());
-        }
+        return read(
+                tx -> AutomergeSys.getMarksAtIndexInTx(tx, obj, index, Optional.empty()),
+                doc -> AutomergeSys.getMarksAtIndexInDoc(doc, obj, index, Optional.empty()));
     }
 
     @Override
     public synchronized HashMap<String, AmValue> getMarksAtIndex(ObjectId obj, long index, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getMarksAtIndexInTx(this.transactionPtr.get(), obj, index, Optional.of(heads));
-        } else {
-            return AutomergeSys.getMarksAtIndexInDoc(this.pointer.get(), obj, index, Optional.of(heads));
-        }
+        return read(
+                tx -> AutomergeSys.getMarksAtIndexInTx(tx, obj, index, Optional.of(heads)),
+                doc -> AutomergeSys.getMarksAtIndexInDoc(doc, obj, index, Optional.of(heads)));
     }
 
     @Override
     public synchronized Cursor makeCursor(ObjectId obj, long index) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.makeCursorInTx(this.transactionPtr.get(), obj, index, Optional.empty());
-        } else {
-            return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.empty());
-        }
+        return read(
+                tx -> AutomergeSys.makeCursorInTx(tx, obj, index, Optional.empty()),
+                doc -> AutomergeSys.makeCursorInDoc(doc, obj, index, Optional.empty()));
     }
 
     @Override
     public synchronized Cursor makeCursor(ObjectId obj, long index, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.makeCursorInTx(this.transactionPtr.get(), obj, index, Optional.of(heads));
-        } else {
-            return AutomergeSys.makeCursorInDoc(this.pointer.get(), obj, index, Optional.of(heads));
-        }
+        return read(
+                tx -> AutomergeSys.makeCursorInTx(tx, obj, index, Optional.of(heads)),
+                doc -> AutomergeSys.makeCursorInDoc(doc, obj, index, Optional.of(heads)));
     }
 
     @Override
     public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.lookupCursorIndexInTx(this.transactionPtr.get(), obj, cursor, Optional.empty());
-        } else {
-            return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.empty());
-        }
-
+        return read(
+                tx -> AutomergeSys.lookupCursorIndexInTx(tx, obj, cursor, Optional.empty()),
+                doc -> AutomergeSys.lookupCursorIndexInDoc(doc, obj, cursor, Optional.empty()));
     }
 
     @Override
     public synchronized long lookupCursorIndex(ObjectId obj, Cursor cursor, ChangeHash[] heads) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.lookupCursorIndexInTx(this.transactionPtr.get(), obj, cursor, Optional.of(heads));
-        } else {
-            return AutomergeSys.lookupCursorIndexInDoc(this.pointer.get(), obj, cursor, Optional.of(heads));
-        }
+        return read(
+                tx -> AutomergeSys.lookupCursorIndexInTx(tx, obj, cursor, Optional.of(heads)),
+                doc -> AutomergeSys.lookupCursorIndexInDoc(doc, obj, cursor, Optional.of(heads)));
     }
 
     @Override
     public synchronized Optional<ObjectType> getObjectType(ObjectId obj) {
-        if (this.transactionPtr.isPresent()) {
-            return AutomergeSys.getObjectTypeInTx(this.transactionPtr.get(), obj);
-        } else {
-            return AutomergeSys.getObjectTypeInDoc(this.pointer.get(), obj);
-        }
+        return read(
+                tx -> AutomergeSys.getObjectTypeInTx(tx, obj),
+                doc -> AutomergeSys.getObjectTypeInDoc(doc, obj));
     }
 }

@@ -30,7 +30,7 @@ public class TransactionImpl implements Transaction {
     }
 
     public synchronized Optional<ChangeHash> commit() {
-        CommitResult result = AutomergeSys.commitTransaction(pointer.get());
+        CommitResult result = AutomergeSys.commitTransaction(pointer.get(), doc.getDocPointer());
         this.pointer = Optional.empty();
         this.doc.clearTransaction();
         if (finish.isPresent()) {
@@ -40,7 +40,7 @@ public class TransactionImpl implements Transaction {
     }
 
     public synchronized void rollback() {
-        AutomergeSys.rollbackTransaction(this.pointer.get());
+        AutomergeSys.rollbackTransaction(this.pointer.get(), doc.getDocPointer());
         this.pointer = Optional.empty();
         this.doc.clearTransaction();
     }

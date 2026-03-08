@@ -51,8 +51,8 @@ pub unsafe extern "C" fn startTransaction(
     _class: jni::objects::JClass,
     doc_pointer: jni::sys::jobject,
 ) -> jobject {
-    let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
-    let tx = doc.transaction();
+    let doc = automerge::Automerge::owned_from_pointer_obj(&mut env, doc_pointer).unwrap();
+    let tx = doc.into_transaction(None, None);
     tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
@@ -64,9 +64,9 @@ pub unsafe extern "C" fn startTransactionLogPatches(
     doc_pointer: jni::sys::jobject,
     patch_log_pointer: jni::sys::jobject,
 ) -> jobject {
-    let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
+    let doc = automerge::Automerge::owned_from_pointer_obj(&mut env, doc_pointer).unwrap();
     let patch_log = PatchLog::owned_from_pointer_obj(&mut env, patch_log_pointer).unwrap();
-    let tx = doc.transaction_log_patches(*patch_log);
+    let tx = doc.into_transaction(Some(*patch_log), None);
     tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
@@ -79,10 +79,10 @@ pub unsafe extern "C" fn startTransactionAt(
     patchlog_pointer: jni::sys::jobject,
     heads: jni::sys::jobject,
 ) -> jobject {
-    let doc = automerge::Automerge::from_pointer_obj(&mut env, doc_pointer).unwrap();
+    let doc = automerge::Automerge::owned_from_pointer_obj(&mut env, doc_pointer).unwrap();
     let patch_log = PatchLog::owned_from_pointer_obj(&mut env, patchlog_pointer).unwrap();
     let heads = heads_from_jobject(&mut env, heads).unwrap();
-    let tx = doc.transaction_at(*patch_log, &heads);
+    let tx = doc.into_transaction(Some(*patch_log), Some(&heads));
     tx.to_pointer_obj(&mut env).unwrap().into_raw()
 }
 
