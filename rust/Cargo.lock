@@ -10,8 +10,9 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "automerge"
-version = "1.0.0-beta.6"
-source = "git+https://github.com/automerge/automerge.git#01590990918e55009cd7ffd0c4334844322f1a2f"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2aab56635599ee2e9df28d9ce180c155b8dbcdd96e4c3f62895fc6a44137d328"
 dependencies = [
  "cfg-if",
  "flate2",
@@ -181,8 +182,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hexane"
-version = "0.1.4"
-source = "git+https://github.com/automerge/automerge.git#01590990918e55009cd7ffd0c4334844322f1a2f"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f4ecba0bb4e14df997df7cab6d1b584c6432d8865cf2adfced814706d715a7b"
 dependencies = [
  "leb128",
  "thiserror 2.0.16",
