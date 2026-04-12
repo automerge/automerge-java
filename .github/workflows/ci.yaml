@@ -47,8 +47,8 @@ jobs:
             arch: arm64
 
           # macOS runners
-          - os: macos-13
-            runner: macos-13
+          - os: macos-15-intel
+            runner: macos-15-intel
             platform: macos
             arch: x86_64
           - os: macos-latest
