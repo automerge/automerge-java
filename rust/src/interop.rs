@@ -1,8 +1,11 @@
+use std::sync::MutexGuard;
+
 use am::PatchLog;
 use automerge::{self as am, ChangeHash};
 use jni::{
     objects::{JObject, JObjectArray, JPrimitiveArray, JValue},
     sys::{jbyteArray, jobject},
+    JNIEnv,
 };
 
 use crate::AUTOMERGE_EXCEPTION;
@@ -10,119 +13,99 @@ use crate::AUTOMERGE_EXCEPTION;
 pub(crate) const CHANGEHASH_CLASS: &str = am_classname!("ChangeHash");
 
 /// A trait for objects which are represented in Java land as a pointer wrapper
-pub(crate) trait AsPointerObj: Sized {
-    type EnvRef<'a>;
-    /// Fully qualified classname of the pointer type
-    fn classname() -> &'static str;
+pub(crate) trait JavaPointer: Sized + Send {
+    /// Fully qualified Java class name for the pointer wrapper object.
+    const POINTER_CLASS: &'static str;
 
-    fn from_pointer_obj<'a>(
-        env: &mut jni::JNIEnv<'a>,
-        obj: jobject,
-    ) -> Result<&'a mut Self::EnvRef<'a>, errors::FromPointerObj> {
-        let obj = unsafe { JObject::from_raw(obj) };
-        let raw_pointer = env
-            .get_field(obj, "pointer", "J")
-            .map_err(errors::FromPointerObj::GetPointer)?
-            .j()
-            .map_err(errors::FromPointerObj::ConvertToI64)?;
-        let result = unsafe { &mut *(raw_pointer as *mut Self::EnvRef<'a>) };
-        Ok(result)
-    }
+    /// Name of the `long` field in the Java object that holds the raw pointer.
+    const POINTER_FIELD: &'static str = "pointer";
 
-    fn owned_from_pointer_obj<'b>(
-        env: &mut jni::JNIEnv<'b>,
-        obj: jobject,
-    ) -> Result<Box<Self::EnvRef<'b>>, errors::FromPointerObj> {
-        let obj = unsafe { JObject::from_raw(obj) };
-        let raw_pointer = env
-            .get_field(obj, "pointer", "J")
-            .map_err(errors::FromPointerObj::GetPointer)?
-            .j()
-            .map_err(errors::FromPointerObj::ConvertToI64)?;
-        let result = unsafe { Box::from_raw(raw_pointer as *mut Self::EnvRef<'b>) };
-        Ok(result)
-    }
-
-    fn set_pointer<'local>(self: Self, env: &mut jni::JNIEnv<'local>, pointer_obj: jobject) -> Result<(),  jni::errors::Error> {
-        let boxed = Box::new(self);
-        let obj = unsafe { JObject::from_raw(pointer_obj) };
-        let ptr = JValue::from(Box::into_raw(boxed) as i64);
-        env.set_field(&obj, "pointer", "J", ptr)?;
-        Ok(())
-    }
-
-    fn to_pointer_obj<'local>(
+    /// Store this Rust value inside a new Java object.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure the value is valid to store across the JNI boundary.
+    unsafe fn store_as_pointer<'local>(
         self,
-        env: &mut jni::JNIEnv<'local>,
-    ) -> Result<JObject<'local>, errors::ConstructPointerObj> {
-        let boxed = Box::new(self);
-        let ptr = JValue::from(Box::into_raw(boxed) as i64);
-        let obj = env.alloc_object(Self::classname()).map_err(|e| {
-            errors::ConstructPointerObj::Alloc {
-                classname: Self::classname(),
-                err: e,
-            }
-        })?;
-        env.set_field(&obj, "pointer", "J", ptr).map_err(|e| {
-            errors::ConstructPointerObj::SetPointer {
-                classname: Self::classname(),
-                err: e,
-            }
-        })?;
+        env: &mut JNIEnv<'local>,
+    ) -> Result<JObject<'local>, jni::errors::Error>
+    where
+        Self: 'static,
+    {
+        let obj = env
+            .alloc_object(Self::POINTER_CLASS)
+            .map_err(|e| jni::errors::Error::from(e))?;
+        env.set_rust_field(&obj, Self::POINTER_FIELD, self)
+            .map_err(|e| jni::errors::Error::from(e))?;
         Ok(obj)
     }
-}
 
-impl AsPointerObj for automerge::Automerge {
-    type EnvRef<'a> = automerge::Automerge;
-    fn classname() -> &'static str {
-        am_classname!("AutomergeSys$DocPointer")
+    /// Borrow the Rust value behind a Java pointer object.
+    ///
+    /// The pointer remains valid after this call — no ownership is transferred.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid jobject with a `POINTER_FIELD` containing a non-null pointer
+    ///   previously set by [`store_as_pointer`](Self::store_as_pointer)
+    unsafe fn borrow_from_pointer<'a>(
+        env: &'a mut JNIEnv<'a>,
+        ptr: jobject,
+    ) -> Result<MutexGuard<'a, Self>, jni::errors::Error>
+    where
+        Self: Send + 'static,
+    {
+        let obj = unsafe { JObject::from_raw(ptr) };
+        env.get_rust_field(&obj, Self::POINTER_FIELD)
+    }
+
+    /// Take ownership of the Rust value behind a Java pointer object.
+    ///
+    /// After this call, the Java object must not be used to access the Rust value.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must be a valid jobject with a `POINTER_FIELD` containing a non-null pointer
+    ///   previously set by [`store_as_pointer`](Self::store_as_pointer)
+    /// - After this call, the Java object must not be used to access the Rust value
+    unsafe fn take_from_pointer<'local>(
+        env: &mut JNIEnv<'local>,
+        ptr: jobject,
+    ) -> Result<Self, jni::errors::Error>
+    where
+        Self: 'static,
+    {
+        let obj = unsafe { JObject::from_raw(ptr) };
+        env.take_rust_field(&obj, Self::POINTER_FIELD)
+    }
+
+    unsafe fn return_to_pointer<'local>(
+        self,
+        env: &mut JNIEnv<'local>,
+        ptr: jobject,
+    ) -> Result<(), jni::errors::Error>
+    where
+        Self: 'static,
+    {
+        let obj = unsafe { JObject::from_raw(ptr) };
+        env.set_rust_field(&obj, Self::POINTER_FIELD, self)
     }
 }
 
-impl<'a> AsPointerObj for automerge::transaction::OwnedTransaction {
-    type EnvRef<'b> = automerge::transaction::OwnedTransaction;
-    fn classname() -> &'static str {
-        am_classname!("AutomergeSys$TransactionPointer")
-    }
+impl JavaPointer for automerge::Automerge {
+    const POINTER_CLASS: &'static str = am_classname!("AutomergeSys$DocPointer");
 }
 
-impl AsPointerObj for automerge::sync::State {
-    type EnvRef<'a> = automerge::sync::State;
-    fn classname() -> &'static str {
-        am_classname!("AutomergeSys$SyncStatePointer")
-    }
+impl<'a> JavaPointer for automerge::transaction::OwnedTransaction {
+    const POINTER_CLASS: &'static str = am_classname!("AutomergeSys$TransactionPointer");
 }
 
-impl AsPointerObj for PatchLog {
-    type EnvRef<'a> = am::patches::PatchLog;
-    fn classname() -> &'static str {
-        am_classname!("AutomergeSys$PatchLogPointer")
-    }
+impl JavaPointer for automerge::sync::State {
+    const POINTER_CLASS: &'static str = am_classname!("AutomergeSys$SyncStatePointer");
 }
 
-pub(crate) mod errors {
-    #[derive(Debug, thiserror::Error)]
-    pub(crate) enum FromPointerObj {
-        #[error("unable to get the 'pointer' field from the jobject: {0}")]
-        GetPointer(jni::errors::Error),
-        #[error("unable to convert the 'pointer' field to an i64: {0}")]
-        ConvertToI64(jni::errors::Error),
-    }
-
-    #[derive(Debug, thiserror::Error)]
-    pub(crate) enum ConstructPointerObj {
-        #[error("unable to alloc object of type {classname}: {err}")]
-        Alloc {
-            classname: &'static str,
-            err: jni::errors::Error,
-        },
-        #[error("unable to set the 'pointer' field for {classname}: {err}")]
-        SetPointer {
-            classname: &'static str,
-            err: jni::errors::Error,
-        },
-    }
+impl JavaPointer for PatchLog {
+    const POINTER_CLASS: &'static str = am_classname!("AutomergeSys$PatchLogPointer");
 }
 
 /// Given a pointer to an array of java ChangeHash objects, return a vector of ChangeHashes.

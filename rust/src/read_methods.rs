@@ -1,4 +1,5 @@
 use std::ops::RangeBounds;
+use std::sync::MutexGuard;
 
 use am::ReadDoc;
 use jni::objects::JObject;
@@ -15,7 +16,7 @@ use crate::mark::mark_to_java;
 use crate::obj_id::{obj_id_or_throw, JavaObjId};
 use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
-use crate::{interop::AsPointerObj, read_ops::ReadOps};
+use crate::{interop::JavaPointer, read_ops::ReadOps};
 use automerge as am;
 use automerge::transaction::OwnedTransaction;
 
@@ -63,7 +64,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         key: P,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
 
         let key = catch!(env, key.into().try_into_prop(&mut env));
@@ -79,7 +81,8 @@ impl SomeReadPointer {
         key: P,
         heads_pointer: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = heads_from_jobject(&mut env, heads_pointer).unwrap();
 
@@ -96,7 +99,8 @@ impl SomeReadPointer {
         key: P,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
 
         let key = catch!(env, key.into().try_into_prop(&mut env));
@@ -135,7 +139,8 @@ impl SomeReadPointer {
     }
 
     unsafe fn heads(self, env: &mut jni::JNIEnv) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let heads = read.heads();
 
         let heads_arr = env
@@ -155,7 +160,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(env, h).unwrap());
         let keys = match read.object_type(&obj) {
@@ -186,7 +192,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jlong {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer, 0);
         match heads {
             Some(h) => {
@@ -203,7 +210,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
         let items = match read.object_type(&obj) {
@@ -245,7 +253,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
 
@@ -302,7 +311,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads: Option<jobject>,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = heads.map(|h| heads_from_jobject(&mut env, h).unwrap());
         let text = match read.object_type(&obj) {
@@ -330,7 +340,8 @@ impl SomeReadPointer {
         obj_pointer: jobject,
         heads_option: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = maybe_heads(&mut env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
@@ -366,7 +377,8 @@ impl SomeReadPointer {
         index: jint,
         heads_option: jobject,
     ) -> jobject {
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = maybe_heads(&mut env, heads_option).unwrap();
         let marks = if let Some(h) = heads {
@@ -405,7 +417,8 @@ impl SomeReadPointer {
     ) -> jobject {
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
         let heads = maybe_heads(&mut env, maybe_heads_pointer).unwrap();
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         if index < 0 {
             throw_amg_exc_or_fatal(&mut env, "Index must be >= 0");
             return JObject::null().into_raw();
@@ -430,7 +443,8 @@ impl SomeReadPointer {
     ) -> jlong {
         let obj = obj_id_or_throw!(&mut env, obj_pointer, 0);
         let heads = maybe_heads(&mut env, maybe_heads_pointer).unwrap();
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
 
         let cursor = Cursor::from_raw(&mut env, cursor_pointer).unwrap();
         let index = read.get_cursor_position(obj, cursor.as_ref(), heads.as_deref());
@@ -446,7 +460,8 @@ impl SomeReadPointer {
 
     unsafe fn get_object_type(self, mut env: jni::JNIEnv<'_>, obj_pointer: jobject) -> jobject {
         let obj = obj_id_or_throw!(&mut env, obj_pointer);
-        let read = SomeRead::from_pointer(&mut env, self);
+        let mut env_for_read = env.unsafe_clone();
+        let read = SomeRead::from_pointer(&mut env_for_read, self);
         let obj_type = match read.object_type(obj) {
             Ok(o) => o,
             Err(automerge::AutomergeError::InvalidObjId(_)) => {
@@ -480,12 +495,12 @@ unsafe fn maybe_heads(
 
 // Existential type over all implementations of ReadOps
 enum SomeRead<'a> {
-    Transaction(&'a OwnedTransaction),
-    Doc(&'a automerge::Automerge),
+    Transaction(MutexGuard<'a, OwnedTransaction>),
+    Doc(MutexGuard<'a, automerge::Automerge>),
 }
 
 impl<'a> SomeRead<'a> {
-    unsafe fn from_pointer(env: &mut jni::JNIEnv<'a>, pointer: SomeReadPointer) -> SomeRead<'a> {
+    unsafe fn from_pointer(env: &'a mut jni::JNIEnv<'a>, pointer: SomeReadPointer) -> SomeRead<'a> {
         match pointer {
             SomeReadPointer::Doc(doc_pointer) => Self::from_doc_pointer(env, doc_pointer),
             SomeReadPointer::Tx(tx) => Self::from_tx_pointer(env, tx),
@@ -493,18 +508,18 @@ impl<'a> SomeRead<'a> {
     }
 
     pub(crate) unsafe fn from_tx_pointer(
-        env: &mut jni::JNIEnv<'a>,
+        env: &'a mut jni::JNIEnv<'a>,
         pointer: jobject,
     ) -> SomeRead<'a> {
-        let tx = OwnedTransaction::from_pointer_obj(env, pointer).unwrap();
+        let tx = OwnedTransaction::borrow_from_pointer(env, pointer).unwrap();
         Self::Transaction(tx)
     }
 
     pub(crate) unsafe fn from_doc_pointer(
-        env: &mut jni::JNIEnv<'a>,
+        env: &'a mut jni::JNIEnv<'a>,
         pointer: jobject,
     ) -> SomeRead<'a> {
-        let am = automerge::Automerge::from_pointer_obj(env, pointer).unwrap();
+        let am = automerge::Automerge::borrow_from_pointer(env, pointer).unwrap();
         SomeRead::Doc(am)
     }
 }
@@ -814,7 +829,7 @@ impl<'a> ReadDoc for SomeRead<'a> {
     ) -> Result<automerge::hydrate::Value, automerge::AutomergeError> {
         match self {
             SomeRead::Transaction(tx) => tx.hydrate(obj, heads),
-            SomeRead::Doc(doc) => ReadDoc::hydrate(*doc, obj, heads),
+            SomeRead::Doc(doc) => ReadDoc::hydrate(&**doc, obj, heads),
         }
     }
 
