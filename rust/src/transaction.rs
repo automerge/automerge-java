@@ -1,10 +1,10 @@
 use am::transaction::Transactable;
-use automerge::{self as am, transaction::OwnedTransaction};
+use automerge::{self as am, transaction::OwnedTransaction, Automerge};
 use automerge_jni_macros::jni_fn;
-use jni::sys::jobject;
+use jni::{objects::JObject, sys::jobject};
 
 use crate::{
-    interop::{changehash_to_jobject, AsPointerObj},
+    interop::{changehash_to_jobject, JavaPointer},
     java_option::{make_empty_option, make_optional},
 };
 
@@ -30,8 +30,11 @@ unsafe fn do_tx_op<Op: TransactionOp>(
     tx_pointer: jobject,
     op: Op,
 ) -> Op::Output {
-    let tx = am::transaction::OwnedTransaction::from_pointer_obj(env, tx_pointer).unwrap();
-    op.execute(env, tx)
+    let mut env_for_tx = env.unsafe_clone();
+    let mut tx =
+        am::transaction::OwnedTransaction::borrow_from_pointer(&mut env_for_tx, tx_pointer)
+            .unwrap();
+    op.execute(env, &mut *tx)
 }
 
 pub(crate) const COMMITRESULT_CLASS: &str = am_classname!("CommitResult");
@@ -44,10 +47,11 @@ pub unsafe extern "C" fn commitTransaction(
     tx_pointer: jobject,
     doc_pointer: jobject,
 ) -> jobject {
-    let tx = OwnedTransaction::owned_from_pointer_obj(&mut env, tx_pointer).unwrap();
+    let tx = OwnedTransaction::take_from_pointer(&mut env, tx_pointer).unwrap();
     let (doc, hash, patches) = tx.commit();
-    doc.set_pointer(&mut env, doc_pointer).unwrap();
-    
+
+    doc.return_to_pointer(&mut env, doc_pointer).unwrap();
+
     let hash_jobject = hash
         .map(|h| {
             let hash_jobj = changehash_to_jobject(&mut env, &h)?;
@@ -55,11 +59,11 @@ pub unsafe extern "C" fn commitTransaction(
         })
         .unwrap_or_else(|| make_empty_option(&mut env))
         .unwrap();
-    let patches_jobject = patches.to_pointer_obj(&mut env).unwrap();
+    let patches_jobject = patches.store_as_pointer(&mut env).unwrap();
     let commit_result = env
         .new_object(
             COMMITRESULT_CLASS,
-            format!("(Ljava/util/Optional;L{};)V", am::PatchLog::classname()),
+            format!("(Ljava/util/Optional;L{};)V", am::PatchLog::POINTER_CLASS),
             &[(&hash_jobject).into(), (&patches_jobject).into()],
         )
         .unwrap();
@@ -74,7 +78,7 @@ pub unsafe extern "C" fn rollbackTransaction(
     tx_pointer: jobject,
     doc_pointer: jobject,
 ) {
-    let tx = OwnedTransaction::owned_from_pointer_obj(&mut env, tx_pointer).unwrap();
+    let tx = OwnedTransaction::take_from_pointer(&mut env, tx_pointer).unwrap();
     let (doc, _) = tx.rollback();
-    doc.set_pointer(&mut env, doc_pointer).unwrap();
+    doc.return_to_pointer(&mut env, doc_pointer).unwrap();
 }
