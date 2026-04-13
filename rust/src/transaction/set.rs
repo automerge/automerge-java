@@ -1,15 +1,16 @@
 use automerge as am;
 use automerge::transaction::Transactable;
 use automerge_jni_macros::jni_fn;
-use jni::objects::JPrimitiveArray;
-use jni::sys::{jboolean, jstring};
+use jni::errors::ThrowRuntimeExAndDefault;
+use jni::objects::{JByteArray, JClass};
+use jni::sys::jboolean;
+use jni::{jni_sig, jni_str};
 use jni::{
     objects::{JObject, JString},
-    sys::{jbyteArray, jint, jlong, jobject},
+    sys::{jint, jlong},
 };
 
-use crate::interop::throw_amg_exc_or_fatal;
-use crate::obj_id::obj_id_or_throw;
+use crate::interop::{read_usize, unwrap_or_throw_amg_exc};
 use crate::obj_id::JavaObjId;
 use crate::obj_type::JavaObjType;
 use crate::prop::JProp;
@@ -17,502 +18,563 @@ use crate::prop::JProp;
 use super::{do_tx_op, TransactionOp};
 
 struct SetOp<'a, V: Into<automerge::ScalarValue>> {
-    obj: jobject,
+    obj: JavaObjId,
     prop: JProp<'a>,
     value: V,
 }
 
 impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
-    type Output = ();
+    type Output<'local> = ();
 
-    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let key = match self.prop.try_into_prop(env) {
-            Ok(k) => k,
-            Err(e) => {
-                throw_amg_exc_or_fatal(env, e.to_string());
-                return;
-            }
-        };
-        let obj = obj_id_or_throw!(env, self.obj, ());
+    unsafe fn execute<'local, T: Transactable>(
+        self,
+        env: &jni::Env<'local>,
+        tx: &mut T,
+    ) -> Result<Self::Output<'local>, jni::errors::Error> {
+        let key = self.prop.try_into_prop(env)?;
 
-        match tx.put(obj, key, self.value) {
-            Ok(_) => {}
-            Err(e) => {
-                throw_amg_exc_or_fatal(env, e.to_string());
-            }
-        }
+        unwrap_or_throw_amg_exc(env, tx.put(self.obj, key, self.value))
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setDoubleInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setDoubleInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
     value: jni::sys::jdouble,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value,
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setBytesInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
-    value: jbyteArray,
+pub unsafe extern "C" fn setBytesInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
+    value: JByteArray<'local>,
 ) {
-    let value = JPrimitiveArray::from_raw(value);
-    let bytes = env.convert_byte_array(value).unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: bytes.as_slice().to_vec(),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let bytes = env.convert_byte_array(value)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: bytes.as_slice().to_vec(),
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setStringInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: jstring,
-    value: jstring,
+pub unsafe extern "C" fn setStringInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
+    value: JString<'local>,
 ) {
-    let key = JString::from_raw(key);
-    let value = JString::from_raw(value);
-    let val: String = env.get_string(&value).unwrap().into();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: val,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: value.to_string(),
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setIntInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setIntInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
     value: jint,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: value as i64,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: value as i64,
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setUintInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setUintInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
     value: jint,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: am::ScalarValue::Uint(value as u64),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: am::ScalarValue::Uint(value as u64),
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setBoolInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setBoolInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
     value: jboolean,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: am::ScalarValue::Boolean(value != 0),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: am::ScalarValue::Boolean(value),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setNullInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setNullInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: am::ScalarValue::Null,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: am::ScalarValue::Null,
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setCounterInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
+pub unsafe extern "C" fn setCounterInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
     value: jlong,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: am::ScalarValue::counter(value),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: am::ScalarValue::counter(value),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setDateInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
-    value: jobject,
+pub unsafe extern "C" fn setDateInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj_pointer: JObject<'local>,
+    key: JString<'local>,
+    date: JObject<'local>,
 ) {
-    let date = JObject::from_raw(value);
-    let date_millis = env
-        .call_method(date, "getTime", "()J", &[])
-        .unwrap()
-        .j()
-        .unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: key.into(),
-            value: am::ScalarValue::Timestamp(date_millis),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+        let date_millis = env
+            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+            .j()?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: key.into(),
+                value: am::ScalarValue::Timestamp(date_millis),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setDoubleInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setDoubleInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
     value: jni::sys::jdouble,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value,
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setIntInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setIntInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
     value: jint,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: value as i64,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: value as i64,
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setUintInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setUintInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
     value: jint,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: am::ScalarValue::Uint(value as u64),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: am::ScalarValue::Uint(value as u64),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setStringInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setStringInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    value: jstring,
+    value: JString<'local>,
 ) {
-    let val: String = env.get_string(&JString::from_raw(value)).unwrap().into();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: val,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: value.to_string(),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setBytesInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setBytesInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    value: jbyteArray,
+    value: JByteArray<'local>,
 ) {
-    let value = JPrimitiveArray::from_raw(value);
-    let bytes = env.convert_byte_array(&value).unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: bytes,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let bytes = env.convert_byte_array(&value)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: bytes,
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setBoolInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setBoolInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
     value: jboolean,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: am::ScalarValue::Boolean(value == 1),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: am::ScalarValue::Boolean(value),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setDateInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setDateInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    value: jobject,
+    date: JObject<'local>,
 ) {
-    let date = JObject::from_raw(value);
-    let date_millis = env
-        .call_method(date, "getTime", "()J", &[])
-        .unwrap()
-        .j()
-        .unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: am::ScalarValue::Timestamp(date_millis),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let date_millis = env
+            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+            .j()?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: am::ScalarValue::Timestamp(date_millis),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setCounterInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setCounterInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
     value: jlong,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: am::ScalarValue::counter(value),
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: am::ScalarValue::counter(value),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setNullInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setNullInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetOp {
-            obj: obj_pointer,
-            prop: idx.into(),
-            value: am::ScalarValue::Null,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            SetOp {
+                obj,
+                prop: idx.into(),
+                value: am::ScalarValue::Null,
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 struct SetObjOp {
-    obj: jobject,
+    obj: JavaObjId,
     key: automerge::Prop,
     value: am::ObjType,
 }
 
 impl TransactionOp for SetObjOp {
-    type Output = jobject;
+    type Output<'local> = JavaObjId;
 
-    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = obj_id_or_throw!(env, self.obj);
-        let oid = match tx.put_object(obj, self.key, self.value) {
-            Ok(oid) => oid,
-            Err(e) => {
-                throw_amg_exc_or_fatal(env, e.to_string());
-                return JObject::null().into_raw();
-            }
-        };
-        let jobjid = JavaObjId::from(oid);
-        jobjid.into_raw(env).unwrap()
+    unsafe fn execute<'local, T: Transactable>(
+        self,
+        env: &jni::Env<'local>,
+        tx: &mut T,
+    ) -> Result<Self::Output<'local>, jni::errors::Error> {
+        Ok(unwrap_or_throw_amg_exc(env, tx.put_object(self.obj, self.key, self.value))?.into())
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setObjectInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: jstring,
-    value: jobject,
-) -> jobject {
-    let obj_type = JavaObjType::from_java_enum(&mut env, value).unwrap();
-    let key = JString::from_raw(key);
-    let jstr = env.get_string(&key).unwrap();
-    let key = jstr.to_str().unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetObjOp {
-            obj: obj_pointer,
-            key: key.into(),
-            value: obj_type.into(),
-        },
-    )
+pub unsafe extern "C" fn setObjectInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
+    value: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let obj_type = JavaObjType::from_java_enum(env, value)?;
+        let key = key.to_string();
+        let obj_id = do_tx_op(
+            env,
+            tx_pointer,
+            SetObjOp {
+                obj,
+                key: key.into(),
+                value: obj_type.into(),
+            },
+        )?;
+        obj_id.into_jobject(env)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn setObjectInList(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn setObjectInList<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    value: jobject,
-) -> jobject {
-    let obj_type = JavaObjType::from_java_enum(&mut env, value).unwrap();
-    let idx = match usize::try_from(idx) {
-        Ok(idx) => idx,
-        Err(_) => {
-            throw_amg_exc_or_fatal(&mut env, "index must be non-negative");
-            return JObject::null().into_raw();
-        }
-    };
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SetObjOp {
-            obj: obj_pointer,
-            key: idx.into(),
-            value: obj_type.into(),
-        },
-    )
+    value: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let obj_type = JavaObjType::from_java_enum(env, value)?;
+        let idx = read_usize(env, idx)?;
+        let result = do_tx_op(
+            env,
+            tx_pointer,
+            SetObjOp {
+                obj,
+                key: idx.into(),
+                value: obj_type.into(),
+            },
+        )?;
+        result.into_jobject(env)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }

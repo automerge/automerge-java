@@ -1,36 +1,37 @@
-use jni::objects::JObject;
+use jni::{jni_sig, jni_str, objects::JObject, strings::JNIStr, JValue};
 
-use crate::am_value::to_amvalue;
+use crate::{
+    am_value::to_amvalue,
+    java_option::{make_empty_option, make_optional},
+};
 
-const CONFLICTS_CLASS: &str = am_classname!("Conflicts");
+const CONFLICTS_CLASS: &JNIStr = am_classname!("Conflicts");
 
-pub(crate) unsafe fn make_optional_conflicts<'a>(
-    env: &mut jni::JNIEnv<'a>,
+pub(crate) unsafe fn make_optional_conflicts<'local>(
+    env: &mut jni::Env<'local>,
     values: Vec<(automerge::Value<'_>, automerge::ObjId)>,
-) -> Option<JObject<'a>> {
+) -> Result<JObject<'local>, jni::errors::Error> {
     if values.is_empty() {
-        None
+        make_empty_option(env)
     } else {
-        let values_map = env.new_object("java/util/HashMap", "()V", &[]).unwrap();
+        let values_map = env.new_object(jni_str!("java/util/HashMap"), jni_sig!("()V"), &[])?;
         for (value, objid) in values {
-            let key = env.new_string(objid.to_string()).unwrap();
-            let amval = to_amvalue(env, (value, objid)).unwrap();
+            let key = env.new_string(objid.to_string())?;
+            let amval = to_amvalue(env, (value, objid))?;
             env.call_method(
                 &values_map,
-                "put",
-                "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
+                jni_str!("put"),
+                jni_sig!("(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"),
                 &[(&key).into(), (&amval).into()],
-            )
-            .unwrap();
+            )?;
         }
-        let conflicts = env.alloc_object(CONFLICTS_CLASS).unwrap();
+        let conflicts = env.alloc_object(CONFLICTS_CLASS)?;
         env.set_field(
             &conflicts,
-            "values",
-            "Ljava/util/HashMap;",
+            jni_str!("values"),
+            jni_sig!("Ljava/util/HashMap;"),
             (&values_map).into(),
-        )
-        .unwrap();
-        Some(conflicts)
+        )?;
+        make_optional(env, JValue::from(&conflicts))
     }
 }

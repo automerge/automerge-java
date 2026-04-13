@@ -1,4 +1,4 @@
-use jni::{objects::JString, sys::jlong};
+use jni::{jni_str, objects::JString, sys::jlong};
 
 pub(crate) enum JProp<'a> {
     String(JString<'a>),
@@ -18,27 +18,26 @@ impl<'a> From<jlong> for JProp<'a> {
 }
 
 impl<'a> JProp<'a> {
+    // Throws an IllegalArgumentException if the index is negative
     pub(crate) fn try_into_prop<'b>(
         self,
-        env: &mut jni::JNIEnv<'b>,
-    ) -> Result<automerge::Prop, PropError> {
+        env: &jni::Env<'b>,
+    ) -> Result<automerge::Prop, jni::errors::Error> {
         match self {
-            Self::String(s) => {
-                let jstr = env.get_string(&s)?;
-                let s = jstr.to_str().map_err(|_| PropError::BadKey)?;
-                Ok(automerge::Prop::Map(s.to_string()))
+            Self::String(s) => Ok(automerge::Prop::Map(s.to_string())),
+            Self::Idx(i) => {
+                let idx = usize::try_from(i).or_else(|_err| {
+                    env.with_local_frame(1, |env| {
+                        env.throw_new(
+                            jni_str!("java/lang/IllegalArgumentException"),
+                            jni_str!("index cannot be negative"),
+                        )?;
+                        Err::<usize, _>(jni::errors::Error::JavaException)
+                    })?;
+                    Err(jni::errors::Error::JavaException)
+                })?;
+                Ok(idx.into())
             }
-            Self::Idx(i) => Ok(usize::try_from(i).map_err(|_| PropError::BadIndex)?.into()),
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum PropError {
-    #[error("index must not be negative")]
-    BadIndex,
-    #[error(transparent)]
-    Jni(#[from] jni::errors::Error),
-    #[error("not a valid UTF-8 string")]
-    BadKey,
 }

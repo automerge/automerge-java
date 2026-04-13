@@ -1,4 +1,9 @@
-use jni::{objects::JObject, sys::jobject};
+use jni::{
+    jni_sig, jni_str,
+    objects::JObject,
+    signature::RuntimeFieldSignature,
+    strings::{JNIStr, JNIString},
+};
 
 use automerge as am;
 
@@ -8,7 +13,7 @@ pub(crate) enum JavaObjType {
     Text,
 }
 
-pub(crate) const CLASSNAME: &str = am_classname!("ObjectType");
+pub(crate) const CLASSNAME: &JNIStr = am_classname!("ObjectType");
 
 // The ordinal of the various types in the `org.automerge.jni.ObjectType` enum
 const MAP_ORDINAL: i32 = 0;
@@ -31,35 +36,42 @@ impl JavaObjType {
     ///
     /// If the object does not have an `ordinal` method which returns an integer or if the ordinal
     /// returned is not recognized.
-    pub(crate) unsafe fn from_java_enum(
-        env: &mut jni::JNIEnv,
-        obj: jobject,
-    ) -> Result<Self, FromJavaError> {
-        let obj = JObject::from_raw(obj);
+    pub(crate) unsafe fn from_java_enum<'local>(
+        env: &mut jni::Env<'local>,
+        obj: JObject<'local>,
+    ) -> Result<Self, jni::errors::Error> {
         let val = env
-            .call_method(obj, "ordinal", "()I", &[])
-            .map_err(FromJavaError::Ordinal)?
-            .i()
-            .map_err(FromJavaError::OrdinalNotInteger)?;
+            .call_method(obj, jni_str!("ordinal"), jni_sig!("()I"), &[])?
+            .i()?;
         match val {
             MAP_ORDINAL => Ok(Self::Map),
             LIST_ORDINAL => Ok(Self::List),
             TEXT_ORDINAL => Ok(Self::Text),
-            other => Err(FromJavaError::UnknownOrdinal(other)),
+            other => env.with_local_frame(1, |env| {
+                let msg = JNIString::from(format!("unknown ordinal: {}", other));
+                env.throw_new(jni_str!("java/lang/IllegalArgumentException"), msg)?;
+                Err(jni::errors::Error::JavaException)
+            }),
         }
     }
 
     /// Convert a `JavaObjType` to a `JOBject`
     pub(crate) unsafe fn to_java_enum<'a>(
         &'_ self,
-        env: &mut jni::JNIEnv<'a>,
+        env: &mut jni::Env<'a>,
     ) -> Result<JObject<'a>, jni::errors::Error> {
         let field_name = match self {
             Self::Map => MAP_FIELD_NAME,
             Self::List => LIST_FIELD_NAME,
             Self::Text => TEXT_FIELD_NAME,
         };
-        let field = env.get_static_field(CLASSNAME, field_name, format!("L{CLASSNAME};"))?;
+        // TODO: replace this with jni_sig!?
+        let field_sig = RuntimeFieldSignature::from_str(format!("L{CLASSNAME};")).unwrap();
+        let field = env.get_static_field(
+            CLASSNAME,
+            JNIString::from(field_name),
+            field_sig.field_signature(),
+        )?;
         field.l()
     }
 }
@@ -82,14 +94,4 @@ impl From<am::ObjType> for JavaObjType {
             am::ObjType::Text => JavaObjType::Text,
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum FromJavaError {
-    #[error("unable to call the 'ordinal' method: {0}")]
-    Ordinal(jni::errors::Error),
-    #[error("unable to convert the result of the 'ordinal' method to an integer: {0}")]
-    OrdinalNotInteger(jni::errors::Error),
-    #[error("unknown ordinal {0}")]
-    UnknownOrdinal(i32),
 }

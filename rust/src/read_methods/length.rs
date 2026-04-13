@@ -1,50 +1,58 @@
 use automerge_jni_macros::jni_fn;
-use jni::sys::{jlong, jobject};
+use jni::{
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JObjectArray},
+    sys::jlong,
+};
 
 use super::SomeReadPointer;
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListLengthInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn getListLengthInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
 ) -> jlong {
-    SomeReadPointer::tx(tx_pointer).length(env, obj_pointer, None)
+    env.with_env(|env| SomeReadPointer::tx(tx).length(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListLengthInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn getListLengthInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
 ) -> jlong {
-    SomeReadPointer::doc(doc_pointer).length(env, obj_pointer, None)
+    env.with_env(|env| SomeReadPointer::doc(doc).length(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListLengthAtInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    heads_pointer: jobject,
+pub unsafe extern "C" fn getListLengthAtInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
 ) -> jlong {
-    SomeReadPointer::tx(tx_pointer).length(env, obj_pointer, Some(heads_pointer))
+    env.with_env(|env| SomeReadPointer::tx(tx).length(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListLengthAtInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    heads_pointer: jobject,
+pub unsafe extern "C" fn getListLengthAtInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
 ) -> jlong {
-    SomeReadPointer::doc(doc_pointer).length(env, obj_pointer, Some(heads_pointer))
+    env.with_env(|env| SomeReadPointer::doc(doc).length(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }

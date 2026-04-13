@@ -1,356 +1,320 @@
 use am::transaction::Transactable;
-use automerge as am;
+use automerge::{self as am, marks::ExpandMark, ScalarValue};
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::{JObject, JPrimitiveArray, JString},
-    sys::{jboolean, jdouble, jlong, jobject, jstring},
+    errors::ThrowRuntimeExAndDefault,
+    jni_sig, jni_str,
+    objects::{JByteArray, JClass, JObject, JString},
+    sys::{jboolean, jdouble, jlong},
 };
 
 use crate::{
     expand_mark,
-    interop::throw_amg_exc_or_fatal,
-    obj_id::{obj_id_or_throw, JavaObjId},
+    interop::{read_u64, unwrap_or_throw_amg_exc},
+    obj_id::JavaObjId,
 };
 
 use super::{do_tx_op, TransactionOp};
 
 struct MarkOp {
-    obj: jobject,
+    obj: JavaObjId,
     start: usize,
     end: usize,
-    name: jstring,
+    name: String,
     value: am::ScalarValue,
-    expand: jobject,
+    expand: ExpandMark,
 }
 
 impl TransactionOp for MarkOp {
-    type Output = ();
+    type Output<'local> = ();
 
-    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let expand_obj = JObject::from_raw(self.expand);
-        let expand = expand_mark::from_java(env, expand_obj).unwrap();
-        let name_str = JString::from_raw(self.name);
-        let name: String = env.get_string(&name_str).unwrap().into();
-        let mark = am::marks::Mark::new(name, self.value, self.start, self.end);
-        let obj = obj_id_or_throw!(env, self.obj, ());
-        match tx.mark(obj, mark, expand) {
-            Ok(_) => {}
-            Err(e) => {
-                let msg = format!("Error marking: {e}");
-                throw_amg_exc_or_fatal(env, msg);
-            }
-        }
+    unsafe fn execute<'local, T: Transactable>(
+        self,
+        env: &jni::Env<'local>,
+        tx: &mut T,
+    ) -> Result<Self::Output<'local>, jni::errors::Error> {
+        let mark = am::marks::Mark::new(self.name, self.value, self.start, self.end);
+        unwrap_or_throw_amg_exc(env, tx.mark(self.obj, mark, self.expand))
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markUint(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+#[allow(clippy::too_many_arguments)]
+unsafe fn do_mark<'local, V: Into<ScalarValue>>(
+    env: &mut jni::Env<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    value: jlong,
-    expand_pointer: jobject,
-) {
-    let int = match u64::try_from(value) {
-        Ok(i) => am::ScalarValue::Uint(i),
-        Err(_) => {
-            throw_amg_exc_or_fatal(&mut env, "uint value must not be negative");
-            return;
-        }
-    };
+    value: V,
+    expand: JObject<'local>,
+) -> Result<(), jni::errors::Error> {
+    let obj = JavaObjId::from_jobject(env, obj)?;
+    let expand = expand_mark::from_java(env, expand)?;
     do_tx_op(
-        &mut env,
-        tx_pointer,
+        env,
+        tx,
         MarkOp {
-            obj: obj_pointer,
+            obj,
             start: start as usize,
             end: end as usize,
-            name: name_pointer,
-            value: int,
-            expand: expand_pointer,
+            name: name.to_string(),
+            value: value.into(),
+            expand,
         },
     )
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markInt(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markUint<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jlong,
-    expand_pointer: jobject,
+    expand_obj: JObject<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Int(value),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let value = read_u64(env, value)?;
+        do_mark(env, tx_pointer, obj, name, start, end, value, expand_obj)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markDouble(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markInt<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
+    start: jlong,
+    end: jlong,
+    value: jlong,
+    expand: JObject<'local>,
+) {
+    env.with_env(|env| do_mark(env, tx, obj, name, start, end, value, expand))
+        .resolve::<ThrowRuntimeExAndDefault>()
+}
+
+#[no_mangle]
+#[jni_fn]
+pub unsafe extern "C" fn markDouble<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jdouble,
-    expand_pointer: jobject,
+    expand: JObject<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::F64(value),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| do_mark(env, tx, obj, name, start, end, value, expand))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markBytes(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markBytes<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    value: jobject,
-    expand_pointer: jobject,
+    value: JByteArray<'local>,
+    expand: JObject<'local>,
 ) {
-    let value = JPrimitiveArray::from_raw(value);
-    let bytes = env.convert_byte_array(value).unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Bytes(bytes),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let value = env.convert_byte_array(value)?;
+        do_mark(env, tx, obj, name, start, end, value, expand)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markString(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markString<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    value: jstring,
-    expand_pointer: jobject,
+    value: JString<'local>,
+    expand: JObject<'local>,
 ) {
-    let value_str = JString::from_raw(value);
-    let value: String = env.get_string(&value_str).unwrap().into();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Str(value.into()),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let value = value.to_string();
+        do_mark(env, tx, obj, name, start, end, value, expand)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markCounter(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markCounter<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jlong,
-    expand_pointer: jobject,
+    expand: JObject<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Counter(value.into()),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let value = ScalarValue::Counter(value.into());
+        do_mark(env, tx, obj, name, start, end, value, expand)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markDate(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markDate<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    value: jobject,
-    expand_pointer: jobject,
+    date: JObject<'local>,
+    expand: JObject<'local>,
 ) {
-    let date = JObject::from_raw(value);
-    let date_millis = env
-        .call_method(date, "getTime", "()J", &[])
-        .unwrap()
-        .j()
-        .unwrap();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Timestamp(date_millis),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let date_millis = env
+            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+            .j()?;
+        do_mark(
+            env,
+            tx,
+            obj,
+            name,
+            start,
+            end,
+            ScalarValue::Timestamp(date_millis),
+            expand,
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markBool(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markBool<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jboolean,
-    expand_pointer: jobject,
+    expand: JObject<'local>,
 ) {
-    let value = value != 0;
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Boolean(value),
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        do_mark(
+            env,
+            tx,
+            obj,
+            name,
+            start,
+            end,
+            am::ScalarValue::Boolean(value),
+            expand,
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn markNull(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn markNull<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    expand_pointer: jobject,
+    expand: JObject<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        MarkOp {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            value: am::ScalarValue::Null,
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        do_mark(
+            env,
+            tx,
+            obj,
+            name,
+            start,
+            end,
+            am::ScalarValue::Null,
+            expand,
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 struct Unmark {
-    obj: jobject,
+    obj: JavaObjId,
     start: usize,
     end: usize,
-    name: jstring,
-    expand: jobject,
+    name: String,
+    expand: ExpandMark,
 }
 
 impl TransactionOp for Unmark {
-    type Output = ();
+    type Output<'local> = ();
 
-    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let expand_obj = JObject::from_raw(self.expand);
-        let expand = expand_mark::from_java(env, expand_obj).unwrap();
-        let name_str = JString::from_raw(self.name);
-        let name: String = env.get_string(&name_str).unwrap().into();
-        let obj = obj_id_or_throw!(env, self.obj, ());
-        match tx.unmark(obj, &name, self.start, self.end, expand) {
-            Ok(_) => {}
-            Err(e) => {
-                let msg = format!("Error marking: {e}");
-                throw_amg_exc_or_fatal(env, msg);
-            }
-        }
+    unsafe fn execute<'local, T: Transactable>(
+        self,
+        env: &jni::Env<'local>,
+        tx: &mut T,
+    ) -> Result<Self::Output<'local>, jni::errors::Error> {
+        unwrap_or_throw_amg_exc(
+            env,
+            tx.unmark(self.obj, &self.name, self.start, self.end, self.expand),
+        )
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn unMark(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    name_pointer: jni::sys::jstring,
+pub unsafe extern "C" fn unMark<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    name: JString<'local>,
     start: jlong,
     end: jlong,
-    expand_pointer: jobject,
+    expand: JObject<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        Unmark {
-            obj: obj_pointer,
-            start: start as usize,
-            end: end as usize,
-            name: name_pointer,
-            expand: expand_pointer,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let expand = expand_mark::from_java(env, expand)?;
+        let name = name.to_string();
+        do_tx_op(
+            env,
+            tx,
+            Unmark {
+                obj,
+                start: start as usize,
+                end: end as usize,
+                name,
+                expand,
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }

@@ -1,50 +1,57 @@
 use automerge_jni_macros::jni_fn;
-use jni::sys::jobject;
+use jni::{
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JObjectArray},
+};
 
 use super::SomeReadPointer;
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListItemsInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-) -> jobject {
-    SomeReadPointer::tx(tx_pointer).list_items(env, obj_pointer, None)
+pub unsafe extern "C" fn getListItemsInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).list_items(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListItemsInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-) -> jobject {
-    SomeReadPointer::doc(doc_pointer).list_items(env, obj_pointer, None)
+pub unsafe extern "C" fn getListItemsInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).list_items(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListItemsAtInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    heads_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::tx(tx_pointer).list_items(env, obj_pointer, Some(heads_pointer))
+pub unsafe extern "C" fn getListItemsAtInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).list_items(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getListItemsAtInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    heads_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::doc(doc_pointer).list_items(env, obj_pointer, Some(heads_pointer))
+pub unsafe extern "C" fn getListItemsAtInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).list_items(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
