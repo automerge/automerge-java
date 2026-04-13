@@ -1,5 +1,8 @@
 [workspace]
 
+[workspace.dependencies]
+jni = "0.22.4"
+
 [package]
 name = "automerge_jni"
 version = "0.2.0"
@@ -9,7 +12,7 @@ edition = "2021"
 
 [dependencies]
 automerge = "0.8.0"
-jni = "0.21.1"
+jni = { workspace = true }
 thiserror = "1.0.37"
 automerge-jni-macros = { path = "./automerge-jni-macros" }
 

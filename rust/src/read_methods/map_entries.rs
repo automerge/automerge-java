@@ -1,50 +1,57 @@
 use automerge_jni_macros::jni_fn;
-use jni::sys::jobject;
+use jni::{
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JObjectArray},
+};
 
 use super::SomeReadPointer;
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getMapEntriesInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jobject,
-    obj_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::tx(tx_pointer).map_entries(env, obj_pointer, None)
+pub unsafe extern "C" fn getMapEntriesInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).map_entries(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getMapEntriesInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jobject,
-    obj_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::doc(doc_pointer).map_entries(env, obj_pointer, None)
+pub unsafe extern "C" fn getMapEntriesInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).map_entries(env, obj, None))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getMapEntriesAtInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jobject,
-    obj_pointer: jobject,
-    heads_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::tx(tx_pointer).map_entries(env, obj_pointer, Some(heads_pointer))
+pub unsafe extern "C" fn getMapEntriesAtInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).map_entries(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getMapEntriesAtInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jobject,
-    obj_pointer: jobject,
-    heads_pointer: jobject,
-) -> jobject {
-    SomeReadPointer::doc(doc_pointer).map_entries(env, obj_pointer, Some(heads_pointer))
+pub unsafe extern "C" fn getMapEntriesAtInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).map_entries(env, obj, Some(heads)))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }

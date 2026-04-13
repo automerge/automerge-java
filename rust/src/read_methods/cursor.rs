@@ -1,66 +1,64 @@
 use automerge_jni_macros::jni_fn;
-use jni::sys::{jlong, jobject};
+use jni::{
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject},
+    sys::jlong,
+};
 
 use super::SomeReadPointer;
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn makeCursorInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn makeCursorInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
     index: jlong,
-    maybe_heads_pointer: jni::sys::jobject,
-) -> jobject {
-    SomeReadPointer::doc(doc_pointer).make_cursor(env, obj_pointer, index, maybe_heads_pointer)
+    heads: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).make_cursor(env, obj, index, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn makeCursorInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn makeCursorInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
     index: jlong,
-    maybe_heads_pointer: jni::sys::jobject,
-) -> jobject {
-    SomeReadPointer::tx(tx_pointer).make_cursor(env, obj_pointer, index, maybe_heads_pointer)
+    heads: JObject<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).make_cursor(env, obj, index, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn lookupCursorIndexInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    cursor_pointer: jni::sys::jobject,
-    maybe_heads_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn lookupCursorIndexInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+    cursor: JObject<'local>,
+    heads: JObject<'local>,
 ) -> jlong {
-    SomeReadPointer::doc(doc_pointer).lookup_cursor_index(
-        env,
-        obj_pointer,
-        cursor_pointer,
-        maybe_heads_pointer,
-    )
+    env.with_env(|env| SomeReadPointer::doc(doc).lookup_cursor_index(env, obj, cursor, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn lookupCursorIndexInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    cursor_pointer: jni::sys::jobject,
-    maybe_heads_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn lookupCursorIndexInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    cursor: JObject<'local>,
+    heads: JObject<'local>,
 ) -> jlong {
-    SomeReadPointer::tx(tx_pointer).lookup_cursor_index(
-        env,
-        obj_pointer,
-        cursor_pointer,
-        maybe_heads_pointer,
-    )
+    env.with_env(|env| SomeReadPointer::tx(tx).lookup_cursor_index(env, obj, cursor, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }

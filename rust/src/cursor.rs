@@ -1,11 +1,13 @@
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::{JByteArray, JObject, JPrimitiveArray, JString},
-    sys::{jbyte, jobject},
-    JNIEnv,
+    errors::ThrowRuntimeExAndDefault,
+    jni_sig, jni_str,
+    objects::{JByteArray, JClass, JObject, JString},
+    strings::{JNIStr, JNIString},
+    Env,
 };
 
-use crate::interop::throw_or_fatal;
+use crate::interop::{set_array_field, unwrap_or_throw_amg_exc};
 
 #[derive(Debug)]
 pub struct Cursor(automerge::Cursor);
@@ -22,117 +24,99 @@ impl From<automerge::Cursor> for Cursor {
     }
 }
 
-const CLASSNAME: &str = am_classname!("Cursor");
+const CLASSNAME: &JNIStr = am_classname!("Cursor");
 
 impl Cursor {
-    pub(crate) fn into_raw(self, env: &mut JNIEnv) -> Result<jobject, jni::errors::Error> {
-        Ok(self.into_jobject(env)?.into_raw())
-    }
-
-    pub(crate) fn into_jobject<'a>(
+    pub(crate) fn into_jobject<'local>(
         self,
-        env: &mut JNIEnv<'a>,
-    ) -> Result<JObject<'a>, jni::errors::Error> {
+        env: &mut Env<'local>,
+    ) -> Result<JObject<'local>, jni::errors::Error> {
         let raw_obj = env.alloc_object(CLASSNAME)?;
         let bytes = self.0.to_bytes();
         let jbytes = env.byte_array_from_slice(&bytes)?;
-        env.set_field(&raw_obj, "raw", "[B", (&jbytes).into())?;
+        unsafe {
+            set_array_field(
+                env,
+                &raw_obj,
+                jni_str!("raw"),
+                jni_sig!("[B"),
+                (&jbytes).into(),
+            )?
+        };
         Ok(raw_obj)
     }
 
-    pub(crate) unsafe fn from_raw(
-        env: &mut JNIEnv<'_>,
-        raw: jobject,
-    ) -> Result<Self, errors::FromRaw> {
-        let obj = JObject::from_raw(raw);
-        let bytes_jobject = env
-            .get_field(obj, "raw", "[B")
-            .map_err(errors::FromRaw::GetRaw)?
-            .l()
-            .map_err(errors::FromRaw::RawPointerNotObject)?;
-        let jbytearray = JPrimitiveArray::<jbyte>::from(bytes_jobject);
-        let bytes = env
-            .convert_byte_array(&jbytearray)
-            .map_err(errors::FromRaw::GetByteArray)?;
-        let cursor: automerge::Cursor = bytes.try_into().map_err(errors::FromRaw::Invalid)?;
+    pub(crate) fn from_jobject<'local>(
+        env: &mut Env<'local>,
+        obj: JObject<'local>,
+    ) -> Result<Self, jni::errors::Error> {
+        let bytes_jobject = env.get_field(obj, jni_str!("raw"), jni_sig!("[B"))?.l()?;
+        let jbytearray = JByteArray::cast_local(env, bytes_jobject)?;
+        let bytes = env.convert_byte_array(&jbytearray)?;
+        let cursor: automerge::Cursor =
+            unwrap_or_throw_amg_exc::<_, automerge::AutomergeError>(env, bytes.try_into())?;
         Ok(Self(cursor))
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn cursorToString(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    obj: jni::sys::jobject,
-) -> jni::sys::jobject {
-    let cursor = Cursor::from_raw(&mut env, obj).unwrap();
-    let s = cursor.as_ref().to_string();
-    let jstr = env.new_string(s).unwrap();
-    jstr.into_raw()
+pub unsafe extern "C" fn cursorToString<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    obj: JObject<'local>,
+) -> JString<'local> {
+    env.with_env(|env| {
+        let cursor = Cursor::from_jobject(env, obj)?;
+        let s = cursor.as_ref().to_string();
+        env.new_string(s)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn cursorFromString(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    s: jni::sys::jstring,
-) -> jobject {
-    let jstring = &JString::from_raw(s);
-    let s = env.get_string(jstring).unwrap();
-    let Ok(s) = s.to_str() else {
-        throw_or_fatal(
-            &mut env,
-            "java/lang/IllegalArgumentException",
-            "invalid cursor string",
-        );
-        return JObject::null().into_raw();
-    };
-    let Ok(cursor) = automerge::Cursor::try_from(s) else {
-        throw_or_fatal(
-            &mut env,
-            "java/lang/IllegalArgumentException",
-            "invalid cursor string",
-        );
-        return JObject::null().into_raw();
-    };
-    Cursor::from(cursor).into_raw(&mut env).unwrap()
+pub unsafe extern "C" fn cursorFromString<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    jstring: JString<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| {
+        let s = jstring.to_string();
+        let cursor = match automerge::Cursor::try_from(s) {
+            Ok(c) => c,
+            Err(e) => {
+                env.throw_new(
+                    jni_str!("java/lang/IllegalArgumentException"),
+                    JNIString::from(format!("invalid cursor string: {}", e)),
+                )?;
+                return Err(jni::errors::Error::JavaException);
+            }
+        };
+        Cursor::from(cursor).into_jobject(env)
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn cursorFromBytes(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    bytes: jni::sys::jbyteArray,
-) -> jobject {
-    let jarr = JByteArray::from_raw(bytes);
-    let bytes = env.convert_byte_array(&jarr).unwrap();
-    let Ok(cursor) = automerge::Cursor::try_from(bytes) else {
-        // throw IllegalArgumentException
-        throw_or_fatal(
-            &mut env,
-            "java/lang/IllegalArgumentException",
-            "invalid cursor bytes",
-        );
-        return JObject::null().into_raw();
-    };
-    Cursor::from(cursor).into_raw(&mut env).unwrap()
-}
-
-pub mod errors {
-    use super::CLASSNAME;
-
-    #[derive(Debug, thiserror::Error)]
-    pub(crate) enum FromRaw {
-        #[error("unable to get the 'raw' field: {0} for class {}", CLASSNAME)]
-        GetRaw(jni::errors::Error),
-        #[error("could not convert the 'raw' pointer to an object: {0}")]
-        RawPointerNotObject(jni::errors::Error),
-        #[error("error getting byte array from object: {0}")]
-        GetByteArray(jni::errors::Error),
-        #[error("invalid ID")]
-        Invalid(automerge::AutomergeError),
-    }
+pub unsafe extern "C" fn cursorFromBytes<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    bytes: JByteArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| {
+        let bytes = env.convert_byte_array(&bytes)?;
+        match automerge::Cursor::try_from(bytes) {
+            Ok(c) => Cursor::from(c).into_jobject(env),
+            Err(_e) => {
+                env.throw_new(
+                    jni_str!("java/lang/IllegalArgumentException"),
+                    jni_str!("invalid cursor bytes"),
+                )?;
+                Err(jni::errors::Error::JavaException)
+            }
+        }
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }

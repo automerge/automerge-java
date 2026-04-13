@@ -1,61 +1,64 @@
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::JString,
-    sys::{jlong, jobject},
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JString},
+    sys::jlong,
 };
 
-use crate::{
-    interop::throw_amg_exc_or_fatal,
-    obj_id::{obj_id_or_throw, JavaObjId},
-};
+use crate::{interop::unwrap_or_throw_amg_exc, obj_id::JavaObjId};
 
 use super::{do_tx_op, TransactionOp};
 
 struct SpliceTextOp<'a> {
-    obj: jobject,
+    obj: JavaObjId,
     idx: jlong,
     delete: jlong,
     value: JString<'a>,
 }
 
 impl<'a> TransactionOp for SpliceTextOp<'a> {
-    type Output = ();
+    type Output<'local> = ();
 
-    unsafe fn execute<T: automerge::transaction::Transactable>(
+    unsafe fn execute<'local, T: automerge::transaction::Transactable>(
         self,
-        env: &mut jni::JNIEnv,
+        env: &jni::Env<'local>,
         tx: &mut T,
-    ) -> Self::Output {
-        let obj = obj_id_or_throw!(env, self.obj, ());
-        let value: String = env.get_string(&self.value).unwrap().into();
-        match tx.splice_text(obj, self.idx as usize, self.delete as isize, &value) {
-            Ok(_) => {}
-            Err(e) => {
-                throw_amg_exc_or_fatal(env, e.to_string());
-            }
-        }
+    ) -> Result<Self::Output<'local>, jni::errors::Error> {
+        unwrap_or_throw_amg_exc(
+            env,
+            tx.splice_text(
+                self.obj,
+                self.idx as usize,
+                self.delete as isize,
+                &self.value.to_string(),
+            ),
+        )
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn spliceText(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn spliceText<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
     start_idx: jlong,
     delete_count: jlong,
-    chars: JString,
+    chars: JString<'local>,
 ) {
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        SpliceTextOp {
-            obj: obj_pointer,
-            idx: start_idx,
-            delete: delete_count,
-            value: chars,
-        },
-    )
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(
+            env,
+            tx,
+            SpliceTextOp {
+                obj,
+                idx: start_idx,
+                delete: delete_count,
+                value: chars,
+            },
+        )
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }

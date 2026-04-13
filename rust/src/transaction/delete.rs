@@ -1,79 +1,73 @@
 use automerge::transaction::Transactable;
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::JString,
-    sys::{jlong, jobject, jstring},
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JString},
+    sys::jlong,
 };
 
 use crate::{
-    interop::throw_amg_exc_or_fatal,
-    obj_id::{obj_id_or_throw, JavaObjId},
+    interop::{read_usize, unwrap_or_throw_amg_exc},
+    obj_id::JavaObjId,
 };
 
 use super::{do_tx_op, TransactionOp};
 
 struct DeleteOp {
-    obj: jobject,
+    obj: JavaObjId,
     key: automerge::Prop,
 }
 
 impl TransactionOp for DeleteOp {
-    type Output = ();
+    type Output<'a> = ();
 
-    unsafe fn execute<T: Transactable>(self, env: &mut jni::JNIEnv, tx: &mut T) -> Self::Output {
-        let obj = obj_id_or_throw!(env, self.obj, ());
-        match tx.delete(obj, self.key) {
-            Ok(_) => {}
-            Err(e) => {
-                throw_amg_exc_or_fatal(env, e.to_string());
-            }
-        }
+    unsafe fn execute<'a, T: Transactable>(
+        self,
+        env: &jni::Env<'a>,
+        tx: &mut T,
+    ) -> Result<Self::Output<'a>, jni::errors::Error> {
+        unwrap_or_throw_amg_exc(env, tx.delete(self.obj, self.key))
     }
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn deleteInMap(
-    mut env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: jstring,
+pub unsafe extern "C" fn deleteInMap<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
 ) {
-    let key = JString::from_raw(key);
-    let k: String = env.get_string(&key).unwrap().into();
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        DeleteOp {
-            obj: obj_pointer,
-            key: k.into(),
-        },
-    )
+    env.with_env(|env| {
+        let k: String = key.to_string();
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        do_tx_op(env, tx_pointer, DeleteOp { obj, key: k.into() })
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
 pub unsafe extern "C" fn deleteInList<'local>(
-    mut env: jni::JNIEnv<'local>,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx_pointer: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
 ) {
-    let idx = match usize::try_from(idx) {
-        Ok(idx) => idx,
-        Err(_) => {
-            throw_amg_exc_or_fatal(&mut env, "Index out of bounds");
-            return;
-        }
-    };
-    do_tx_op(
-        &mut env,
-        tx_pointer,
-        DeleteOp {
-            obj: obj_pointer,
-            key: idx.into(),
-        },
-    );
+    env.with_env(|env| {
+        let obj = JavaObjId::from_jobject(env, obj)?;
+        let idx = read_usize(env, idx)?;
+        do_tx_op(
+            env,
+            tx_pointer,
+            DeleteOp {
+                obj,
+                key: idx.into(),
+            },
+        )?;
+        Ok::<_, jni::errors::Error>(())
+    })
+    .resolve::<ThrowRuntimeExAndDefault>()
 }

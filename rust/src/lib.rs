@@ -1,9 +1,11 @@
 use automerge_jni_macros::jni_fn;
+use jni::sys::jstring;
+use jni::Outcome;
 
 // Prefix a JNI type name with the automerge package path
 macro_rules! am_classname {
     ($name:literal) => {
-        concat!("org/automerge/", $name)
+        ::jni::jni_str!("org/automerge/", $name)
     };
 }
 
@@ -21,7 +23,7 @@ mod transaction;
 
 mod obj_id;
 mod prop;
-use jni::sys::jstring;
+use jni::strings::JNIStr;
 use obj_id::JavaObjId;
 
 mod read_methods;
@@ -32,12 +34,18 @@ mod read_ops;
 mod am_value;
 mod java_option;
 
-const AUTOMERGE_EXCEPTION: &str = am_classname!("AutomergeException");
+const AUTOMERGE_EXCEPTION: &JNIStr = am_classname!("AutomergeException");
 
 #[allow(clippy::missing_safety_doc)]
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn rustLibVersion(env: jni::JNIEnv) -> jstring {
-    let version = env.new_string(env!("CARGO_PKG_VERSION")).unwrap();
+pub unsafe extern "C" fn rustLibVersion(mut env: jni::EnvUnowned) -> jstring {
+    let version = match env
+        .with_env(|env| env.new_string(env!("CARGO_PKG_VERSION")))
+        .into_outcome()
+    {
+        Outcome::Ok(v) => v,
+        _ => todo!(),
+    };
     version.into_raw()
 }

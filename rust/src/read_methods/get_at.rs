@@ -1,59 +1,64 @@
 use automerge_jni_macros::jni_fn;
 use jni::{
-    objects::JString,
-    sys::{jlong, jobject},
+    errors::ThrowRuntimeExAndDefault,
+    objects::{JClass, JObject, JObjectArray, JString},
+    sys::jlong,
 };
 
 use super::SomeReadPointer;
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getAtInMapInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
-    heads: jobject,
-) -> jni::sys::jobject {
-    SomeReadPointer::doc(doc_pointer).get_at(env, obj_pointer, key, heads)
+pub unsafe extern "C" fn getAtInMapInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).get_at(env, obj, key, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getAtInMapInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
-    key: JString,
-    heads: jobject,
-) -> jni::sys::jobject {
-    SomeReadPointer::tx(tx_pointer).get_at(env, obj_pointer, key, heads)
+pub unsafe extern "C" fn getAtInMapInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
+    key: JString<'local>,
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).get_at(env, obj, key, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getAtInListInDoc(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    doc_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn getAtInListInDoc<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    doc: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    heads: jobject,
-) -> jni::sys::jobject {
-    SomeReadPointer::doc(doc_pointer).get_at(env, obj_pointer, idx, heads)
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::doc(doc).get_at(env, obj, idx, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
 #[jni_fn]
-pub unsafe extern "C" fn getAtInListInTx(
-    env: jni::JNIEnv,
-    _class: jni::objects::JClass,
-    tx_pointer: jni::sys::jobject,
-    obj_pointer: jni::sys::jobject,
+pub unsafe extern "C" fn getAtInListInTx<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _class: JClass<'local>,
+    tx: JObject<'local>,
+    obj: JObject<'local>,
     idx: jlong,
-    heads: jobject,
-) -> jni::sys::jobject {
-    SomeReadPointer::tx(tx_pointer).get_at(env, obj_pointer, idx, heads)
+    heads: JObjectArray<'local>,
+) -> JObject<'local> {
+    env.with_env(|env| SomeReadPointer::tx(tx).get_at(env, obj, idx, heads))
+        .resolve::<ThrowRuntimeExAndDefault>()
 }
