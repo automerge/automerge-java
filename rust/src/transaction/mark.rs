@@ -1,11 +1,10 @@
 use am::transaction::Transactable;
 use automerge::{self as am, marks::ExpandMark, ScalarValue};
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
     jni_sig, jni_str,
     objects::{JByteArray, JClass, JObject, JString},
     sys::{jboolean, jdouble, jlong},
+    NativeMethod,
 };
 
 use crate::{
@@ -47,7 +46,7 @@ unsafe fn do_mark<'local, V: Into<ScalarValue>>(
     start: jlong,
     end: jlong,
     value: V,
-    expand: JObject<'local>,
+    expand: bindings::ExpandMark<'local>,
 ) -> Result<(), jni::errors::Error> {
     let obj = JavaObjId::from_jobject(env, obj)?;
     let expand = expand_mark::from_java(env, expand)?;
@@ -65,204 +64,263 @@ unsafe fn do_mark<'local, V: Into<ScalarValue>>(
     )
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markUint<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn mark_uint(
+        tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jlong,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_int(
+        tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jlong,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_double(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jdouble,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_bytes(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jbyte[],
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_string(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: JString,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_counter(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jlong,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_date(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        date: java.util.Date,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_bool(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        value: jboolean,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn mark_null(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        expand: bindings::ExpandMark
+    ) },
+    ams_native! { static extern fn un_mark(tx: bindings::TransactionPointer,
+        obj: bindings::ObjectId,
+        name: JString,
+        start: jlong,
+        end: jlong,
+        expand: bindings::ExpandMark
+    ) },
+];
+
+#[allow(clippy::too_many_arguments)]
+fn mark_uint<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jlong,
-    expand_obj: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let value = read_u64(env, value)?;
-        do_mark(env, tx_pointer, obj, name, start, end, value, expand_obj)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let value = read_u64(env, value)?;
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markInt<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_int<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jlong,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| do_mark(env, tx, obj, name, start, end, value, expand))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markDouble<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_double<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jdouble,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| do_mark(env, tx, obj, name, start, end, value, expand))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markBytes<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_bytes<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: JByteArray<'local>,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let value = env.convert_byte_array(value)?;
-        do_mark(env, tx, obj, name, start, end, value, expand)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let value = env.convert_byte_array(value)?;
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markString<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_string<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: JString<'local>,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let value = value.to_string();
-        do_mark(env, tx, obj, name, start, end, value, expand)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let value = value.to_string();
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markCounter<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_counter<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jlong,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let value = ScalarValue::Counter(value.into());
-        do_mark(env, tx, obj, name, start, end, value, expand)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let value = ScalarValue::Counter(value.into());
+    unsafe { do_mark(env, tx.into(), obj.into(), name, start, end, value, expand) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markDate<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_date<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     date: JObject<'local>,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let date_millis = env
-            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
-            .j()?;
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let date_millis = env
+        .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+        .j()?;
+    unsafe {
         do_mark(
             env,
-            tx,
-            obj,
+            tx.into(),
+            obj.into(),
             name,
             start,
             end,
             ScalarValue::Timestamp(date_millis),
             expand,
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markBool<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[allow(clippy::too_many_arguments)]
+fn mark_bool<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
     value: jboolean,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    unsafe {
         do_mark(
             env,
-            tx,
-            obj,
+            tx.into(),
+            obj.into(),
             name,
             start,
             end,
             am::ScalarValue::Boolean(value),
             expand,
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn markNull<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[expect(clippy::too_many_arguments)]
+fn mark_null<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    unsafe {
         do_mark(
             env,
-            tx,
-            obj,
+            tx.into(),
+            obj.into(),
             name,
             start,
             end,
             am::ScalarValue::Null,
             expand,
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
 struct Unmark {
@@ -288,25 +346,24 @@ impl TransactionOp for Unmark {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn unMark<'local>(
-    mut env: jni::EnvUnowned<'local>,
+#[expect(clippy::too_many_arguments)]
+fn un_mark<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     name: JString<'local>,
     start: jlong,
     end: jlong,
-    expand: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let expand = expand_mark::from_java(env, expand)?;
-        let name = name.to_string();
+    expand: bindings::ExpandMark<'local>,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let expand = expand_mark::from_java(env, expand)?;
+    let name = name.to_string();
+    unsafe {
         do_tx_op(
             env,
-            tx,
+            tx.into(),
             Unmark {
                 obj,
                 start: start as usize,
@@ -315,6 +372,5 @@ pub unsafe extern "C" fn unMark<'local>(
                 expand,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }

@@ -2,19 +2,18 @@ use std::ops::RangeBounds;
 use std::sync::MutexGuard;
 
 use am::ReadDoc;
+use jni::jni_str;
 use jni::objects::{JObject, JObjectArray};
-use jni::signature::RuntimeFieldSignature;
 use jni::sys::{jint, jlong};
-use jni::{jni_sig, jni_str};
 
 use crate::am_value::{scalar_to_amvalue, to_amvalue, to_optional_amvalue};
-use crate::conflicts::make_optional_conflicts;
-use crate::cursor::Cursor;
+use crate::bindings::{ArrayList, ChangeHash, Cursor, Optional};
+use crate::conflicts::make_java_conflicts;
+use crate::cursor::JavaCursor;
 use crate::interop::{
-    changehash_to_jobject, heads_from_jobject, throw_amg_exc, unwrap_or_throw_amg_exc,
-    CHANGEHASH_CLASS,
+    heads_from_jobject, heads_to_jobject_array, throw_amg_exc, unwrap_or_throw_amg_exc,
 };
-use crate::java_option::{make_empty_option, make_optional};
+use crate::java_option::make_optional;
 use crate::mark::mark_to_java;
 use crate::obj_id::JavaObjId;
 use crate::obj_type::JavaObjType;
@@ -55,7 +54,7 @@ impl<'local> SomeReadPointer<'local> {
         env: &'_ mut jni::Env<'local>,
         obj: JObject<'local>,
         key: P,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
 
@@ -70,8 +69,8 @@ impl<'local> SomeReadPointer<'local> {
         env: &'_ mut jni::Env<'local>,
         obj: JObject<'local>,
         key: P,
-        heads: JObjectArray<'local>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: JObjectArray<'local, ChangeHash<'local>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = heads_from_jobject(env, heads)?;
@@ -87,8 +86,8 @@ impl<'local> SomeReadPointer<'local> {
         env: &'_ mut jni::Env<'local>,
         obj: JObject<'local>,
         key: P,
-        heads: Option<JObjectArray<'local>>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
 
@@ -103,31 +102,29 @@ impl<'local> SomeReadPointer<'local> {
             },
         )?;
 
-        make_optional_conflicts(env, result)
+        if result.is_empty() {
+            make_optional(env, None)
+        } else {
+            let conflicts = make_java_conflicts(env, result)?.into();
+            make_optional(env, Some(conflicts))
+        }
     }
 
     unsafe fn heads(
         self,
         env: &mut jni::Env<'local>,
-    ) -> Result<JObjectArray<'local>, jni::errors::Error> {
+    ) -> Result<JObjectArray<'local, ChangeHash<'local>>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let heads = read.heads();
-
-        let heads_arr =
-            env.new_object_array(heads.len() as i32, CHANGEHASH_CLASS, JObject::null())?;
-        for (i, head) in heads.iter().enumerate() {
-            let hash = changehash_to_jobject(env, head)?;
-            heads_arr.set_element(env, i, hash)?;
-        }
-        Ok(heads_arr)
+        heads_to_jobject_array(env, &heads)
     }
 
     unsafe fn keys(
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads: Option<JObjectArray<'local>>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = heads.map(|h| heads_from_jobject(env, h)).transpose()?;
@@ -136,7 +133,7 @@ impl<'local> SomeReadPointer<'local> {
                 Some(h) => read.keys_at(obj, &h).collect::<Vec<_>>(),
                 None => read.keys(obj).collect::<Vec<_>>(),
             },
-            _ => return make_empty_option(env),
+            _ => return make_optional(env, None),
         };
         let keys_arr = env.new_object_array(
             keys.len() as i32,
@@ -147,14 +144,14 @@ impl<'local> SomeReadPointer<'local> {
             let k = env.new_string(k)?;
             keys_arr.set_element(env, index, k)?;
         }
-        make_optional(env, (&keys_arr).into())
+        make_optional(env, Some(keys_arr.into()))
     }
 
     unsafe fn length(
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads: Option<JObjectArray<'local>>,
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
     ) -> Result<jlong, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
@@ -171,8 +168,8 @@ impl<'local> SomeReadPointer<'local> {
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads: Option<JObjectArray<'local>>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = heads.map(|h| heads_from_jobject(env, h)).transpose()?;
@@ -181,10 +178,10 @@ impl<'local> SomeReadPointer<'local> {
                 Some(h) => read.list_range_at(obj, .., &h).collect::<Vec<_>>(),
                 None => read.list_range(obj, ..).collect::<Vec<_>>(),
             },
-            Ok(_) | Err(am::AutomergeError::NotAnObject) => return make_empty_option(env),
+            Ok(_) | Err(am::AutomergeError::NotAnObject) => return make_optional(env, None),
             Err(e) => {
                 throw_amg_exc(env, e)?;
-                return Ok(JObject::null());
+                return Err(jni::errors::Error::JavaException);
             }
         };
 
@@ -198,15 +195,15 @@ impl<'local> SomeReadPointer<'local> {
             let val = to_amvalue(env, (item.value.into_value(), id))?;
             jitems.set_element(env, idx, val)?;
         }
-        make_optional(env, (&jitems).into())
+        make_optional(env, Some(jitems.into()))
     }
 
     unsafe fn map_entries(
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads: Option<JObjectArray<'local>>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = heads.map(|h| heads_from_jobject(env, h)).transpose()?;
@@ -216,10 +213,10 @@ impl<'local> SomeReadPointer<'local> {
                 Some(h) => read.map_range_at(obj, .., &h).collect::<Vec<_>>(),
                 None => read.map_range(obj, ..).collect::<Vec<_>>(),
             },
-            Ok(..) | Err(am::AutomergeError::NotAnObject) => return make_empty_option(env),
+            Ok(..) | Err(am::AutomergeError::NotAnObject) => return make_optional(env, None),
             Err(e) => {
                 throw_amg_exc(env, e)?;
-                return Ok(JObject::null());
+                return Err(jni::errors::Error::JavaException);
             }
         };
         let entries_arr = env.new_object_array(
@@ -229,37 +226,22 @@ impl<'local> SomeReadPointer<'local> {
         )?;
         for (i, item) in entries.into_iter().enumerate() {
             let id = item.id();
-            let entry = env.alloc_object(am_classname!("MapEntry"))?;
-            let val = env.new_string(item.key)?;
-            env.set_field(
-                &entry,
-                jni_str!("key"),
-                jni_sig!("Ljava/lang/String;"),
-                (&val).into(),
-            )?;
+            let entry = crate::bindings::MapEntry::new(env)?;
+            let key_str = env.new_string(item.key)?;
+            entry.set_key(env, &key_str)?;
             let am_val = to_amvalue(env, (item.value.into_value(), id))?;
-
-            // TODO: replace with jni_sig
-            let val_sig =
-                RuntimeFieldSignature::from_str(format!("L{};", am_classname!("AmValue"))).unwrap();
-
-            env.set_field(
-                &entry,
-                jni_str!("value"),
-                val_sig.field_signature(),
-                (&am_val).into(),
-            )?;
+            entry.set_value(env, &am_val)?;
             entries_arr.set_element(env, i, entry)?;
         }
-        make_optional(env, (&entries_arr).into())
+        make_optional(env, Some(entries_arr.into()))
     }
 
     unsafe fn text(
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads: Option<JObjectArray<'local>>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Option<JObjectArray<'local, ChangeHash<'local>>>,
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = heads.map(|h| heads_from_jobject(env, h)).transpose()?;
@@ -269,23 +251,23 @@ impl<'local> SomeReadPointer<'local> {
                 None => read.text(obj),
             },
             Ok(..) | Err(am::AutomergeError::NotAnObject) => {
-                return make_empty_option(env);
+                return make_optional(env, None);
             }
             Err(e) => {
                 throw_amg_exc(env, e)?;
-                return Ok(JObject::null());
+                return Err(jni::errors::Error::JavaException);
             }
         };
         let text = env.new_string(unwrap_or_throw_amg_exc(env, text)?)?;
-        make_optional(env, (&text).into())
+        make_optional(env, Some(text.into()))
     }
 
     unsafe fn marks(
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-        heads_option: JObject<'local>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads_option: Optional<'local>,
+    ) -> Result<ArrayList<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = maybe_heads(env, heads_option)?;
@@ -295,17 +277,13 @@ impl<'local> SomeReadPointer<'local> {
             read.marks(obj)
         };
         let marks = unwrap_or_throw_amg_exc(env, marks)?;
-        let marks_arr = env.new_object(jni_str!("java/util/ArrayList"), jni_sig!("()V"), &[])?;
+        let list = crate::bindings::ArrayList::new(env)?;
         for mark in marks {
             let jmark = mark_to_java(env, &mark)?;
-            env.call_method(
-                &marks_arr,
-                jni_str!("add"),
-                jni_sig!("(Ljava/lang/Object;)Z"),
-                &[(&jmark).into()],
-            )?;
+            let jmark_obj: JObject = jmark.into();
+            list.add(env, &jmark_obj)?;
         }
-        Ok(marks_arr)
+        Ok(list)
     }
 
     unsafe fn marks_at_index(
@@ -313,8 +291,8 @@ impl<'local> SomeReadPointer<'local> {
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
         index: jint,
-        heads_option: JObject<'local>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads_option: Optional<'local>,
+    ) -> Result<crate::bindings::HashMap<'local>, jni::errors::Error> {
         let read = SomeRead::from_pointer(env, self)?;
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = maybe_heads(env, heads_option)?;
@@ -324,18 +302,15 @@ impl<'local> SomeReadPointer<'local> {
             read.get_marks(obj, index as usize, None)
         };
         let marks = unwrap_or_throw_amg_exc(env, marks)?;
-        let marks_map = env.new_object(jni_str!("java/util/HashMap"), jni_sig!("()V"), &[])?;
+        let map = crate::bindings::HashMap::new(env)?;
         for (mark_name, mark_value) in marks.iter() {
             let value = scalar_to_amvalue(env, mark_value)?;
-            let mark_name = env.new_string(mark_name)?;
-            env.call_method(
-                &marks_map,
-                jni_str!("put"),
-                jni_sig!("(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"),
-                &[(&mark_name).into(), (&value).into()],
-            )?;
+            let value_obj: JObject = value.into();
+            let mark_name_jstr = env.new_string(mark_name)?;
+            let key_obj: JObject = mark_name_jstr.into();
+            map.put(env, &key_obj, &value_obj)?;
         }
-        Ok(marks_map)
+        Ok(map)
     }
 
     unsafe fn make_cursor(
@@ -343,8 +318,8 @@ impl<'local> SomeReadPointer<'local> {
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
         index: jlong,
-        heads: JObject<'local>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+        heads: Optional<'local>,
+    ) -> Result<Cursor<'local>, jni::errors::Error> {
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = maybe_heads(env, heads)?;
         let read = SomeRead::from_pointer(env, self)?;
@@ -353,11 +328,11 @@ impl<'local> SomeReadPointer<'local> {
                 jni_str!("java/lang/IllegalArgumentException"),
                 jni_str!("Index must be >= 0"),
             )?;
-            return Ok(JObject::null());
+            return Err(jni::errors::Error::JavaException);
         }
         let cursor =
             unwrap_or_throw_amg_exc(env, read.get_cursor(obj, index as usize, heads.as_deref()))?;
-        Cursor::from(cursor).into_jobject(env)
+        JavaCursor::from(cursor).into_cursor(env)
     }
 
     unsafe fn lookup_cursor_index(
@@ -365,13 +340,14 @@ impl<'local> SomeReadPointer<'local> {
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
         cursor: JObject<'local>,
-        heads: JObject<'local>,
+        heads: Optional<'local>,
     ) -> Result<jlong, jni::errors::Error> {
         let obj = JavaObjId::from_jobject(env, obj)?;
         let heads = maybe_heads(env, heads)?;
         let read = SomeRead::from_pointer(env, self)?;
 
-        let cursor = Cursor::from_jobject(env, cursor)?;
+        let cursor_obj = crate::bindings::Cursor::cast_local(env, cursor)?;
+        let cursor = JavaCursor::from_cursor(env, cursor_obj)?;
         let index = unwrap_or_throw_amg_exc(
             env,
             read.get_cursor_position(obj, cursor.as_ref(), heads.as_deref()),
@@ -383,40 +359,31 @@ impl<'local> SomeReadPointer<'local> {
         self,
         env: &mut jni::Env<'local>,
         obj: JObject<'local>,
-    ) -> Result<JObject<'local>, jni::errors::Error> {
+    ) -> Result<Optional<'local>, jni::errors::Error> {
         let obj = JavaObjId::from_jobject(env, obj)?;
         let read = SomeRead::from_pointer(env, self)?;
         let obj_type = match read.object_type(obj) {
             Ok(o) => o,
             Err(automerge::AutomergeError::InvalidObjId(_)) => {
-                return make_empty_option(env);
+                return make_optional(env, None);
             }
             Err(e) => {
                 throw_amg_exc(env, e)?;
-                return Ok(JObject::null());
+                return Err(jni::errors::Error::JavaException);
             }
         };
         let val = JavaObjType::from(obj_type).to_java_enum(env)?;
-        make_optional(env, (&val).into())
+        make_optional(env, Some(val.into()))
     }
 }
 
 unsafe fn maybe_heads<'local>(
     env: &mut jni::Env<'local>,
-    maybe_heads: JObject<'local>,
+    maybe_heads: Optional<'local>,
 ) -> Result<Option<Vec<automerge::ChangeHash>>, jni::errors::Error> {
-    let heads_present =
-        env.call_method(&maybe_heads, jni_str!("isPresent"), jni_sig!("()Z"), &[])?;
-    if heads_present.z()? {
-        let heads = env
-            .call_method(
-                maybe_heads,
-                jni_str!("get"),
-                jni_sig!("()Ljava/lang/Object;"),
-                &[],
-            )?
-            .l()?;
-        let heads = JObjectArray::<JObject>::cast_local(env, heads)?;
+    if maybe_heads.is_present(env)? {
+        let heads = maybe_heads.get(env)?;
+        let heads = JObjectArray::<ChangeHash>::cast_local(env, heads)?;
         Ok(Some(heads_from_jobject(env, heads)?))
     } else {
         Ok(None)

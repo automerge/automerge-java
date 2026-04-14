@@ -1,31 +1,28 @@
-use automerge_jni_macros::jni_fn;
-use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject},
-};
+use jni::{objects::JClass, NativeMethod};
 
 use super::SomeReadPointer;
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getObjectTypeInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn get_object_type_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId) -> bindings::Optional },
+    ams_native! { static extern fn get_object_type_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId) -> bindings::Optional },
+];
+
+fn get_object_type_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc).get_object_type(env, obj))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::doc(doc.into()).get_object_type(env, obj.into()) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getObjectTypeInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_object_type_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).get_object_type(env, obj))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::tx(tx.into()).get_object_type(env, obj.into()) }
 }

@@ -1,61 +1,68 @@
-use automerge_jni_macros::jni_fn;
-use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject},
-};
+use jni::{objects::JClass, NativeMethod};
+
+use crate::bindings;
 
 use super::SomeReadPointer;
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getMarksInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn get_marks_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId, heads: java.util.Optional) -> bindings::ArrayList },
+    ams_native! { static extern fn get_marks_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId, heads: java.util.Optional) -> bindings::ArrayList },
+    ams_native! { static extern fn get_marks_at_index_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId, index: jlong, heads: java.util.Optional) -> java.util.HashMap },
+    ams_native! { static extern fn get_marks_at_index_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId, index: jlong, heads: java.util.Optional) -> java.util.HashMap },
+];
+
+fn get_marks_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc).marks(env, obj, heads))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: bindings::Optional<'local>,
+) -> jni::errors::Result<bindings::ArrayList<'local>> {
+    unsafe { SomeReadPointer::doc(doc.into()).marks(env, obj.into(), heads) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getMarksInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_marks_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).marks(env, obj, heads))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: bindings::Optional<'local>,
+) -> jni::errors::Result<bindings::ArrayList<'local>> {
+    unsafe { SomeReadPointer::tx(tx.into()).marks(env, obj.into(), heads) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getMarksAtIndexInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_marks_at_index_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-    index: jni::sys::jint,
-    heads: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc).marks_at_index(env, obj, index, heads))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    index: jni::sys::jlong,
+    heads: bindings::Optional<'local>,
+) -> jni::errors::Result<bindings::HashMap<'local>> {
+    unsafe {
+        SomeReadPointer::doc(doc.into()).marks_at_index(
+            env,
+            obj.into(),
+            index as jni::sys::jint,
+            heads,
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getMarksAtIndexInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_marks_at_index_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-    index: jni::sys::jint,
-    heads: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).marks_at_index(env, obj, index, heads))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    index: jni::sys::jlong,
+    heads: bindings::Optional<'local>,
+) -> jni::errors::Result<bindings::HashMap<'local>> {
+    unsafe {
+        SomeReadPointer::tx(tx.into()).marks_at_index(
+            env,
+            obj.into(),
+            index as jni::sys::jint,
+            heads,
+        )
+    }
 }

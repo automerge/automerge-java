@@ -33,19 +33,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "automerge-jni-macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "automerge_jni"
 version = "0.2.0"
 dependencies = [
  "automerge",
- "automerge-jni-macros",
  "jni",
  "thiserror 1.0.69",
 ]

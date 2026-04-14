@@ -1,8 +1,7 @@
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JString},
+    objects::{JClass, JString},
     sys::jlong,
+    NativeMethod,
 };
 
 use crate::{interop::unwrap_or_throw_amg_exc, obj_id::JavaObjId};
@@ -36,22 +35,26 @@ impl<'a> TransactionOp for SpliceTextOp<'a> {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn spliceText<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn splice_text(tx: bindings::TransactionPointer, obj: bindings::ObjectId, start_idx: jlong, delete_count: jlong, chars: JString) },
+];
+
+fn splice_text<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     start_idx: jlong,
     delete_count: jlong,
     chars: JString<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx,
+            tx.into(),
             SpliceTextOp {
                 obj,
                 idx: start_idx,
@@ -59,6 +62,5 @@ pub unsafe extern "C" fn spliceText<'local>(
                 value: chars,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }

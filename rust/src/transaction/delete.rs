@@ -1,9 +1,8 @@
 use automerge::transaction::Transactable;
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JString},
+    objects::{JClass, JString},
     sys::jlong,
+    NativeMethod,
 };
 
 use crate::{
@@ -30,44 +29,42 @@ impl TransactionOp for DeleteOp {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn deleteInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn delete_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString) },
+    ams_native! { static extern fn delete_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong) },
+];
+
+fn delete_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
-) {
-    env.with_env(|env| {
-        let k: String = key.to_string();
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        do_tx_op(env, tx_pointer, DeleteOp { obj, key: k.into() })
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<()> {
+    let k: String = key.to_string();
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe { do_tx_op(env, tx.into(), DeleteOp { obj, key: k.into() }) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn deleteInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn delete_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let idx = read_usize(env, idx)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let idx = read_usize(env, idx)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             DeleteOp {
                 obj,
                 key: idx.into(),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }

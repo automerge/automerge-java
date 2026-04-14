@@ -1,29 +1,29 @@
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JObjectArray},
+    objects::{JClass, JObjectArray},
+    NativeMethod,
 };
 
 use super::SomeReadPointer;
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getHeadsInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn get_heads_in_tx(tx: bindings::TransactionPointer) -> bindings::ChangeHash[] },
+    ams_native! { static extern fn get_heads_in_doc(doc_pointer: bindings::DocPointer) -> bindings::ChangeHash[] },
+];
+
+fn get_heads_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-) -> JObjectArray<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).heads(env))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+) -> jni::errors::Result<JObjectArray<'local, bindings::ChangeHash<'local>>> {
+    unsafe { SomeReadPointer::tx(tx.into()).heads(env) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getHeadsInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_heads_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc_pointer: JObject<'local>,
-) -> JObjectArray<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc_pointer).heads(env))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc_pointer: bindings::DocPointer<'local>,
+) -> jni::errors::Result<JObjectArray<'local, bindings::ChangeHash<'local>>> {
+    unsafe { SomeReadPointer::doc(doc_pointer.into()).heads(env) }
 }

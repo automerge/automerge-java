@@ -1,11 +1,10 @@
 use am::ObjType;
 use automerge as am;
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
     jni_sig, jni_str,
     objects::{JByteArray, JClass, JObject, JString},
     sys::{jboolean, jdouble, jlong},
+    NativeMethod,
 };
 
 use crate::{
@@ -48,267 +47,244 @@ impl TransactionOp for InsertOp<ObjType> {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertDoubleInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn insert_double_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jdouble) },
+    ams_native! { static extern fn insert_string_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: JString) },
+    ams_native! { static extern fn insert_int_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn insert_uint_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn insert_bytes_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jbyte[]) },
+    ams_native! { static extern fn insert_null_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong) },
+    ams_native! { static extern fn insert_counter_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn insert_date_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, date: java.util.Date) },
+    ams_native! { static extern fn insert_bool_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jboolean) },
+    ams_native! { static extern fn insert_object_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: org.automerge.ObjectType) -> bindings::ObjectId },
+];
+
+fn insert_double_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jdouble,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::F64(value),
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertStringInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_string_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JString<'local>,
-) {
+) -> jni::errors::Result<()> {
     let value: String = value.to_string();
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Str(value.into()),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertIntInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_int_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Int(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertUintInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_uint_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
-        let int = read_u64(env, value)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let int = read_u64(env, value)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Uint(int),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertBytesInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_bytes_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JByteArray<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let bytes = env.convert_byte_array(&value)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let bytes = env.convert_byte_array(&value)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Bytes(bytes),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertNullInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_null_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Null,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertCounterInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_counter_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::counter(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertDateInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_date_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     date: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let date_millis = env
-            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
-            .j()?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let date_millis = env
+        .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+        .j()?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Timestamp(date_millis),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertBoolInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_bool_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jboolean,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ScalarValue::Boolean(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn insertObjectInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn insert_object_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
+) -> jni::errors::Result<bindings::ObjectId<'local>> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let result = unsafe {
         let obj_type = JavaObjType::from_java_enum(env, value)?;
-        let result = do_tx_op(
+        do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             InsertOp {
                 obj,
                 index: idx,
                 value: am::ObjType::from(obj_type),
             },
-        )?;
-        result.into_jobject(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )?
+    };
+    result.into_object_id(env)
 }

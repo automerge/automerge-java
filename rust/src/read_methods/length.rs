@@ -1,58 +1,54 @@
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JObjectArray},
+    objects::{JClass, JObjectArray},
     sys::jlong,
+    NativeMethod,
 };
 
 use super::SomeReadPointer;
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getListLengthInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn get_list_length_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId) -> jlong },
+    ams_native! { static extern fn get_list_length_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId) -> jlong },
+    ams_native! { static extern fn get_list_length_at_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId, heads: bindings::ChangeHash[]) -> jlong },
+    ams_native! { static extern fn get_list_length_at_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId, heads: bindings::ChangeHash[]) -> jlong },
+];
+
+fn get_list_length_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-) -> jlong {
-    env.with_env(|env| SomeReadPointer::tx(tx).length(env, obj, None))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<jlong> {
+    unsafe { SomeReadPointer::tx(tx.into()).length(env, obj.into(), None) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getListLengthInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_list_length_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-) -> jlong {
-    env.with_env(|env| SomeReadPointer::doc(doc).length(env, obj, None))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<jlong> {
+    unsafe { SomeReadPointer::doc(doc.into()).length(env, obj.into(), None) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getListLengthAtInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_list_length_at_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObjectArray<'local>,
-) -> jlong {
-    env.with_env(|env| SomeReadPointer::tx(tx).length(env, obj, Some(heads)))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: JObjectArray<'local, bindings::ChangeHash<'local>>,
+) -> jni::errors::Result<jlong> {
+    unsafe { SomeReadPointer::tx(tx.into()).length(env, obj.into(), Some(heads)) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getListLengthAtInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_list_length_at_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObjectArray<'local>,
-) -> jlong {
-    env.with_env(|env| SomeReadPointer::doc(doc).length(env, obj, Some(heads)))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: JObjectArray<'local, bindings::ChangeHash<'local>>,
+) -> jni::errors::Result<jlong> {
+    unsafe { SomeReadPointer::doc(doc.into()).length(env, obj.into(), Some(heads)) }
 }

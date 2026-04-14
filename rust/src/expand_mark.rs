@@ -1,8 +1,10 @@
 use am::marks::ExpandMark;
 use automerge as am;
-use jni::{jni_sig, jni_str, objects::JObject};
+use jni::jni_str;
 
-// The ordinal of the various types in the `org.automerge.jni.ExpandMark` enum
+use crate::bindings;
+
+// Ordinal positions of variants in the `org.automerge.ExpandMark` enum.
 const BEFORE_ORDINAL: i32 = 0;
 const AFTER_ORDINAL: i32 = 1;
 const BOTH_ORDINAL: i32 = 2;
@@ -10,12 +12,9 @@ const NONE_ORDINAL: i32 = 3;
 
 pub(crate) fn from_java<'a>(
     env: &mut jni::Env<'a>,
-    obj: JObject<'a>,
+    enum_obj: bindings::ExpandMark<'a>,
 ) -> Result<ExpandMark, jni::errors::Error> {
-    let val = env
-        .call_method(obj, jni_str!("ordinal"), jni_sig!("()I"), &[])?
-        .i()?;
-    match val {
+    match enum_obj.ordinal(env)? {
         BEFORE_ORDINAL => Ok(ExpandMark::Before),
         AFTER_ORDINAL => Ok(ExpandMark::After),
         BOTH_ORDINAL => Ok(ExpandMark::Both),

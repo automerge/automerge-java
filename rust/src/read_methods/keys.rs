@@ -1,57 +1,53 @@
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JObjectArray},
+    objects::{JClass, JObjectArray},
+    NativeMethod,
 };
 
 use super::SomeReadPointer;
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getKeysInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn get_keys_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId) -> bindings::Optional },
+    ams_native! { static extern fn get_keys_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId) -> bindings::Optional },
+    ams_native! { static extern fn get_keys_at_in_doc(doc: bindings::DocPointer, obj: bindings::ObjectId, heads: bindings::ChangeHash[]) -> bindings::Optional },
+    ams_native! { static extern fn get_keys_at_in_tx(tx: bindings::TransactionPointer, obj: bindings::ObjectId, heads: bindings::ChangeHash[]) -> bindings::Optional },
+];
+
+fn get_keys_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc).keys(env, obj, None))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::doc(doc.into()).keys(env, obj.into(), None) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getKeysInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_keys_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).keys(env, obj, None))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::tx(tx.into()).keys(env, obj.into(), None) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getKeysAtInDoc<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_keys_at_in_doc<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    doc: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObjectArray<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::doc(doc).keys(env, obj, Some(heads)))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    doc: bindings::DocPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: JObjectArray<'local, bindings::ChangeHash<'local>>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::doc(doc.into()).keys(env, obj.into(), Some(heads)) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn getKeysAtInTx<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn get_keys_at_in_tx<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
-    heads: JObjectArray<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| SomeReadPointer::tx(tx).keys(env, obj, Some(heads)))
-        .resolve::<ThrowRuntimeExAndDefault>()
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
+    heads: JObjectArray<'local, bindings::ChangeHash<'local>>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    unsafe { SomeReadPointer::tx(tx.into()).keys(env, obj.into(), Some(heads)) }
 }

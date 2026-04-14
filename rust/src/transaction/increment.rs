@@ -1,8 +1,7 @@
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject, JString},
+    objects::{JClass, JString},
     sys::jlong,
+    NativeMethod,
 };
 
 use crate::{
@@ -30,55 +29,55 @@ impl TransactionOp for IncrementOp {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn incrementInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn increment_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jlong) },
+    ams_native! { static extern fn increment_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+];
+
+fn increment_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: jlong,
-) {
+) -> jni::errors::Result<()> {
     let key: String = key.to_string();
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             IncrementOp {
                 obj,
                 key: key.into(),
                 value,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn incrementInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn increment_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
-        let idx = read_usize(env, idx)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let idx = read_usize(env, idx)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             IncrementOp {
                 obj,
                 key: idx.into(),
                 value,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }

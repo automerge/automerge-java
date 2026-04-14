@@ -1,13 +1,12 @@
 use automerge as am;
 use automerge::transaction::Transactable;
-use automerge_jni_macros::jni_fn;
-use jni::errors::ThrowRuntimeExAndDefault;
 use jni::objects::{JByteArray, JClass};
 use jni::sys::jboolean;
 use jni::{jni_sig, jni_str};
 use jni::{
     objects::{JObject, JString},
-    sys::{jint, jlong},
+    sys::jlong,
+    NativeMethod,
 };
 
 use crate::interop::{read_usize, unwrap_or_throw_amg_exc};
@@ -37,472 +36,435 @@ impl<'a, V: Into<automerge::ScalarValue>> TransactionOp for SetOp<'a, V> {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setDoubleInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn set_double_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jdouble) },
+    ams_native! { static extern fn set_bytes_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jbyte[]) },
+    ams_native! { static extern fn set_string_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: JString) },
+    ams_native! { static extern fn set_int_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jlong) },
+    ams_native! { static extern fn set_uint_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jlong) },
+    ams_native! { static extern fn set_bool_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jboolean) },
+    ams_native! { static extern fn set_null_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString) },
+    ams_native! { static extern fn set_counter_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: jlong) },
+    ams_native! { static extern fn set_date_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, date: java.util.Date) },
+    ams_native! { static extern fn set_double_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jdouble) },
+    ams_native! { static extern fn set_int_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn set_uint_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn set_string_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: JString) },
+    ams_native! { static extern fn set_bytes_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jbyte[]) },
+    ams_native! { static extern fn set_bool_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jboolean) },
+    ams_native! { static extern fn set_date_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, date: java.util.Date) },
+    ams_native! { static extern fn set_counter_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: jlong) },
+    ams_native! { static extern fn set_null_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong) },
+    ams_native! { static extern fn set_object_in_map(tx: bindings::TransactionPointer, obj: bindings::ObjectId, key: JString, value: org.automerge.ObjectType) -> bindings::ObjectId },
+    ams_native! { static extern fn set_object_in_list(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, value: org.automerge.ObjectType) -> bindings::ObjectId },
+];
+
+// The Java signature for setIntInMap is `long value` but was historically
+// called `setIntInMap` — keeping the original jint parameter type for the Java
+// int maps to a Java long (jlong). Need to match what Java declares.
+
+fn set_double_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: jni::sys::jdouble,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setBytesInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_bytes_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: JByteArray<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let bytes = env.convert_byte_array(value)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let bytes = env.convert_byte_array(value)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: bytes.as_slice().to_vec(),
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setStringInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_string_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: JString<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: value.to_string(),
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setIntInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_int_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
-    value: jint,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+    value: jlong,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
-                value: value as i64,
+                value,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setUintInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_uint_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
-    value: jint,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+    value: jlong,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: am::ScalarValue::Uint(value as u64),
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setBoolInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_bool_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: jboolean,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: am::ScalarValue::Boolean(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setNullInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_null_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: am::ScalarValue::Null,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setCounterInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_counter_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: am::ScalarValue::counter(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setDateInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_date_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj_pointer: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     date: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj_pointer)?;
-        let date_millis = env
-            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
-            .j()?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let date_millis = env
+        .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+        .j()?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: key.into(),
                 value: am::ScalarValue::Timestamp(date_millis),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setDoubleInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_double_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jni::sys::jdouble,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setIntInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_int_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
-    value: jint,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+    value: jlong,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
-                value: value as i64,
+                value,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setUintInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_uint_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
-    value: jint,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+    value: jlong,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: am::ScalarValue::Uint(value as u64),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setStringInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_string_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JString<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: value.to_string(),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setBytesInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_bytes_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JByteArray<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let bytes = env.convert_byte_array(&value)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let bytes = env.convert_byte_array(&value)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: bytes,
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setBoolInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_bool_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jboolean,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: am::ScalarValue::Boolean(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setDateInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_date_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     date: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let date_millis = env
-            .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
-            .j()?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let date_millis = env
+        .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+        .j()?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: am::ScalarValue::Timestamp(date_millis),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setCounterInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_counter_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: am::ScalarValue::counter(value),
             },
-        )?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setNullInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_null_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    unsafe {
         do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetOp {
                 obj,
                 prop: idx.into(),
                 value: am::ScalarValue::Null,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
 struct SetObjOp {
@@ -523,58 +485,52 @@ impl TransactionOp for SetObjOp {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setObjectInMap<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_object_in_map<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     key: JString<'local>,
     value: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<bindings::ObjectId<'local>> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let key = key.to_string();
+    let obj_id = unsafe {
         let obj_type = JavaObjType::from_java_enum(env, value)?;
-        let key = key.to_string();
-        let obj_id = do_tx_op(
+        do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetObjOp {
                 obj,
                 key: key.into(),
                 value: obj_type.into(),
             },
-        )?;
-        obj_id.into_jobject(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )?
+    };
+    obj_id.into_object_id(env)
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn setObjectInList<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn set_object_in_list<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx_pointer: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     value: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
+) -> jni::errors::Result<bindings::ObjectId<'local>> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let idx = read_usize(env, idx)?;
+    let result = unsafe {
         let obj_type = JavaObjType::from_java_enum(env, value)?;
-        let idx = read_usize(env, idx)?;
-        let result = do_tx_op(
+        do_tx_op(
             env,
-            tx_pointer,
+            tx.into(),
             SetObjOp {
                 obj,
                 key: idx.into(),
                 value: obj_type.into(),
             },
-        )?;
-        result.into_jobject(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+        )?
+    };
+    result.into_object_id(env)
 }
