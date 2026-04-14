@@ -1,35 +1,25 @@
 use automerge::{self as am};
-use automerge_jni_macros::jni_fn;
-use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JClass, JObject},
-};
+use jni::{objects::JClass, NativeMethod};
 
-use crate::interop::JavaPointer;
+use crate::{bindings, interop::JavaPointer};
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn createPatchLog<'local>(
-    mut env: jni::EnvUnowned<'local>,
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn create_patch_log() -> bindings::PatchLogPointer },
+    ams_native! { static extern fn free_patch_log(patchlog: bindings::PatchLogPointer) },
+];
+
+fn create_patch_log<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let patch_log = am::PatchLog::new(true);
-        patch_log.store_as_pointer(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<bindings::PatchLogPointer<'local>> {
+    unsafe { am::PatchLog::new(true).store_as_pointer(env) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn freePatchLog<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn free_patch_log<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    patchlog: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let _patch_log = am::PatchLog::take_from_pointer(env, patchlog)?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    patchlog: bindings::PatchLogPointer<'local>,
+) -> jni::errors::Result<()> {
+    let _patch_log = unsafe { am::PatchLog::take_from_pointer(env, patchlog)? };
+    Ok(())
 }

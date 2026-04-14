@@ -1,29 +1,23 @@
 use automerge::{transaction::Transactable, ScalarValue};
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
     jni_sig, jni_str,
-    objects::{JByteArray, JClass, JObject, JString},
-    strings::JNIStr,
+    objects::{JClass, JIterator, JObject},
+    refs::Reference,
     sys::jlong,
+    NativeMethod,
 };
 
+use crate::bindings;
+use crate::bindings::{
+    NewValueBool, NewValueBytes, NewValueCounter, NewValueF64, NewValueInt, NewValueNull,
+    NewValueStr, NewValueTimestamp, NewValueUInt,
+};
 use crate::{
     interop::{throw_amg_exc, unwrap_or_throw_amg_exc},
     JavaObjId,
 };
 
 use super::{do_tx_op, TransactionOp};
-
-const UINT_CLASS: &JNIStr = am_classname!("NewValue$UInt");
-const INT_CLASS: &JNIStr = am_classname!("NewValue$Int");
-const F64_CLASS: &JNIStr = am_classname!("NewValue$F64");
-const STR_CLASS: &JNIStr = am_classname!("NewValue$Str");
-const BOOL_CLASS: &JNIStr = am_classname!("NewValue$Bool");
-const NULL_CLASS: &JNIStr = am_classname!("NewValue$Null");
-const BYTES_CLASS: &JNIStr = am_classname!("NewValue$Bytes");
-const TIMESTAMP_CLASS: &JNIStr = am_classname!("NewValue$Timestamp");
-const COUNTER_CLASS: &JNIStr = am_classname!("NewValue$Counter");
 
 struct SpliceOp {
     obj: JavaObjId,
@@ -47,23 +41,29 @@ impl TransactionOp for SpliceOp {
     }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn splice<'local>(
-    mut env: jni::EnvUnowned<'local>,
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn splice(tx: bindings::TransactionPointer, obj: bindings::ObjectId, idx: jlong, delete: jlong, values: java.util.Iterator) },
+];
+
+fn splice<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    tx: JObject<'local>,
-    obj: JObject<'local>,
+    tx: bindings::TransactionPointer<'local>,
+    obj: bindings::ObjectId<'local>,
     idx: jlong,
     delete: jlong,
-    values: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let values = JObjToValIter { jiter: values, env }.collect::<Result<Vec<_>, _>>()?;
+    values: JIterator<'local>,
+) -> jni::errors::Result<()> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let values = JObjToValIter {
+        jiter: values.into(),
+        env,
+    }
+    .collect::<Result<Vec<_>, _>>()?;
+    unsafe {
         do_tx_op(
             env,
-            tx,
+            tx.into(),
             SpliceOp {
                 obj,
                 index: idx as usize,
@@ -71,8 +71,7 @@ pub unsafe extern "C" fn splice<'local>(
                 values,
             },
         )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
 struct JObjToValIter<'a, 'b> {
@@ -94,80 +93,53 @@ impl<'a, 'b> JObjToValIter<'a, 'b> {
             .env
             .call_method(&self.jiter, jni_str!("hasNext"), jni_sig!("()Z"), &[])?
             .z()?;
-        if next {
-            let obj = self
-                .env
-                .call_method(
-                    &self.jiter,
-                    jni_str!("next"),
-                    jni_sig!("()Ljava/lang/Object;"),
-                    &[],
-                )?
-                .l()?;
-            if self.env.is_instance_of(&obj, INT_CLASS)? {
-                let val = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("J"))?
-                    .j()?;
-                Ok(Some(ScalarValue::Int(val)))
-            } else if self.env.is_instance_of(&obj, UINT_CLASS)? {
-                let val = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("J"))?
-                    .j()?;
-                // Cast is okay because UInt ensures value is positive
-                Ok(Some(ScalarValue::Uint(val as u64)))
-            } else if self.env.is_instance_of(&obj, F64_CLASS)? {
-                let val = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("D"))?
-                    .d()?;
-                Ok(Some(ScalarValue::F64(val)))
-            } else if self.env.is_instance_of(&obj, BOOL_CLASS)? {
-                let val = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("Z"))?
-                    .z()?;
-                Ok(Some(ScalarValue::Boolean(val)))
-            } else if self.env.is_instance_of(&obj, BYTES_CLASS)? {
-                let bytes = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("[B"))?
-                    .l()?;
-                let bytes = JByteArray::cast_local(self.env, bytes)?;
-                let val = self.env.convert_byte_array(bytes)?;
-                Ok(Some(ScalarValue::Bytes(val)))
-            } else if self.env.is_instance_of(&obj, NULL_CLASS)? {
-                Ok(Some(ScalarValue::Null))
-            } else if self.env.is_instance_of(&obj, STR_CLASS)? {
-                let sval = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("Ljava/lang/String;"))?
-                    .l()?;
-                let sval = JString::cast_local(self.env, sval)?;
-                Ok(Some(ScalarValue::Str(sval.to_string().into())))
-            } else if self.env.is_instance_of(&obj, TIMESTAMP_CLASS)? {
-                let date = self
-                    .env
-                    .get_field(obj, jni_str!("value"), jni_sig!("Ljava/util/Date;"))?
-                    .l()?;
-                let val = self
-                    .env
-                    .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
-                    .j()?;
-                Ok(Some(ScalarValue::Timestamp(val)))
-            } else if self.env.is_instance_of(&obj, COUNTER_CLASS)? {
-                let val = self
-                    .env
-                    .get_field(&obj, jni_str!("value"), jni_sig!("J"))?
-                    .j()?;
-                Ok(Some(ScalarValue::Counter(val.into())))
-            } else {
-                //self.env.throw_new(AUTOMERGE_EXCEPTION, "Unsupported type")?;
-                Err(Error::InvalidValue)
-            }
+        if !next {
+            return Ok(None);
+        }
+        let obj = self
+            .env
+            .call_method(
+                &self.jiter,
+                jni_str!("next"),
+                jni_sig!("()Ljava/lang/Object;"),
+                &[],
+            )?
+            .l()?;
+        let env = &mut *self.env;
+        if env.is_instance_of(&obj, NewValueInt::class_name().as_ref())? {
+            let v = NewValueInt::cast_local(env, obj)?;
+            Ok(Some(ScalarValue::Int(v.value(env)?)))
+        } else if env.is_instance_of(&obj, NewValueUInt::class_name().as_ref())? {
+            let v = NewValueUInt::cast_local(env, obj)?;
+            Ok(Some(ScalarValue::Uint(v.value(env)? as u64)))
+        } else if env.is_instance_of(&obj, NewValueF64::class_name().as_ref())? {
+            let v = NewValueF64::cast_local(env, obj)?;
+            Ok(Some(ScalarValue::F64(v.value(env)?)))
+        } else if env.is_instance_of(&obj, NewValueBool::class_name().as_ref())? {
+            let v = NewValueBool::cast_local(env, obj)?;
+            Ok(Some(ScalarValue::Boolean(v.value(env)?)))
+        } else if env.is_instance_of(&obj, NewValueBytes::class_name().as_ref())? {
+            let v = NewValueBytes::cast_local(env, obj)?;
+            let bytes = v.value(env)?;
+            Ok(Some(ScalarValue::Bytes(env.convert_byte_array(&bytes)?)))
+        } else if env.is_instance_of(&obj, NewValueNull::class_name().as_ref())? {
+            Ok(Some(ScalarValue::Null))
+        } else if env.is_instance_of(&obj, NewValueStr::class_name().as_ref())? {
+            let v = NewValueStr::cast_local(env, obj)?;
+            let sval = v.value(env)?;
+            Ok(Some(ScalarValue::Str(sval.to_string().into())))
+        } else if env.is_instance_of(&obj, NewValueTimestamp::class_name().as_ref())? {
+            let v = NewValueTimestamp::cast_local(env, obj)?;
+            let date = v.value(env)?;
+            let millis = env
+                .call_method(date, jni_str!("getTime"), jni_sig!("()J"), &[])?
+                .j()?;
+            Ok(Some(ScalarValue::Timestamp(millis)))
+        } else if env.is_instance_of(&obj, NewValueCounter::class_name().as_ref())? {
+            let v = NewValueCounter::cast_local(env, obj)?;
+            Ok(Some(ScalarValue::Counter(v.value(env)?.into())))
         } else {
-            Ok(None)
+            Err(Error::InvalidValue)
         }
     }
 }

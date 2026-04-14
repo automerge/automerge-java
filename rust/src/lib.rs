@@ -1,14 +1,8 @@
-use automerge_jni_macros::jni_fn;
-use jni::sys::jstring;
-use jni::Outcome;
+use jni::objects::{JClass, JString};
+use jni::NativeMethod;
+mod macros;
 
-// Prefix a JNI type name with the automerge package path
-macro_rules! am_classname {
-    ($name:literal) => {
-        ::jni::jni_str!("org/automerge/", $name)
-    };
-}
-
+mod bindings;
 mod conflicts;
 mod cursor;
 mod document;
@@ -36,16 +30,11 @@ mod java_option;
 
 const AUTOMERGE_EXCEPTION: &JNIStr = am_classname!("AutomergeException");
 
-#[allow(clippy::missing_safety_doc)]
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn rustLibVersion(mut env: jni::EnvUnowned) -> jstring {
-    let version = match env
-        .with_env(|env| env.new_string(env!("CARGO_PKG_VERSION")))
-        .into_outcome()
-    {
-        Outcome::Ok(v) => v,
-        _ => todo!(),
-    };
-    version.into_raw()
+const _METHODS: &[NativeMethod] = &[ams_native! { static extern fn rust_lib_version() -> JString }];
+
+fn rust_lib_version<'local>(
+    env: &mut jni::Env<'local>,
+    _class: JClass<'local>,
+) -> jni::errors::Result<JString<'local>> {
+    env.new_string(env!("CARGO_PKG_VERSION"))
 }

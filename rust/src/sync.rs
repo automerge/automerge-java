@@ -1,160 +1,118 @@
 use automerge::{
     self as am,
-    sync::{Message, State as SyncState, SyncDoc},
+    sync::{Message, State as AmSyncState, SyncDoc},
     Automerge,
 };
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    objects::{JByteArray, JClass, JObject, JObjectArray},
+    objects::{JByteArray, JClass, JObjectArray},
+    NativeMethod,
 };
 
-use crate::{
-    interop::{changehash_to_jobject, unwrap_or_throw_amg_exc, JavaPointer, CHANGEHASH_CLASS},
-    java_option::{make_empty_option, make_optional},
-};
+use crate::interop::{heads_to_jobject_array, unwrap_or_throw_amg_exc, JavaPointer};
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn createSyncState<'local>(
-    mut env: jni::EnvUnowned<'local>,
+use crate::bindings;
+
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn create_sync_state() -> bindings::SyncStatePointer },
+    ams_native! { static extern fn generate_sync_message(state: bindings::SyncStatePointer, doc: bindings::DocPointer) -> bindings::Optional },
+    ams_native! { static extern fn receive_sync_message(state: bindings::SyncStatePointer, doc: bindings::DocPointer, message: jbyte[]) },
+    ams_native! { static extern fn receive_sync_message_log_patches(state: bindings::SyncStatePointer, doc: bindings::DocPointer, patch_log: bindings::PatchLogPointer, message: jbyte[]) },
+    ams_native! { static extern fn encode_sync_state(state: bindings::SyncStatePointer) -> jbyte[] },
+    ams_native! { static extern fn decode_sync_state(bytes: jbyte[]) -> bindings::SyncStatePointer },
+    ams_native! { static extern fn free_sync_state(state: bindings::SyncStatePointer) },
+    ams_native! { static extern fn sync_state_shared_heads(state: bindings::SyncStatePointer) -> bindings::ChangeHash[] },
+];
+
+fn create_sync_state<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let state = SyncState::new();
-        state.store_as_pointer(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<bindings::SyncStatePointer<'local>> {
+    unsafe { AmSyncState::new().store_as_pointer(env) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn generateSyncMessage<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn generate_sync_message<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-    doc: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let mut state = SyncState::borrow_from_pointer(env, state)?;
-        let doc = Automerge::borrow_from_pointer(env, doc)?;
-        match doc.generate_sync_message(&mut state) {
-            None => make_empty_option(env),
-            Some(m) => {
-                let bytes = env.byte_array_from_slice(m.encode().as_slice())?;
-                make_optional(env, (&bytes).into())
-            }
+    state: bindings::SyncStatePointer<'local>,
+    doc: bindings::DocPointer<'local>,
+) -> jni::errors::Result<bindings::Optional<'local>> {
+    let mut state = unsafe { AmSyncState::borrow_from_pointer(env, state)? };
+    let doc = unsafe { Automerge::borrow_from_pointer(env, doc)? };
+    match doc.generate_sync_message(&mut state) {
+        None => bindings::Optional::empty(env),
+        Some(m) => {
+            let bytes = env.byte_array_from_slice(m.encode().as_slice())?;
+            bindings::Optional::of(env, &bytes)
         }
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn receiveSyncMessage<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn receive_sync_message<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-    doc: JObject<'local>,
+    state: bindings::SyncStatePointer<'local>,
+    doc: bindings::DocPointer<'local>,
     message: JByteArray<'local>,
-) {
-    env.with_env(|env| {
-        let mut state = SyncState::borrow_from_pointer(env, state)?;
-        let mut doc = Automerge::borrow_from_pointer(env, doc)?;
-        let message_bytes = env.convert_byte_array(&message)?;
-        let message = unwrap_or_throw_amg_exc(env, Message::decode(&message_bytes))?;
-        unwrap_or_throw_amg_exc(env, doc.receive_sync_message(&mut state, message))
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<()> {
+    let mut state = unsafe { AmSyncState::borrow_from_pointer(env, state)? };
+    let mut doc = unsafe { Automerge::borrow_from_pointer(env, doc)? };
+    let message_bytes = env.convert_byte_array(&message)?;
+    let msg = unwrap_or_throw_amg_exc(env, Message::decode(&message_bytes))?;
+    unwrap_or_throw_amg_exc(env, doc.receive_sync_message(&mut state, msg))
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn receiveSyncMessageLogPatches<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn receive_sync_message_log_patches<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-    doc: JObject<'local>,
-    patch_log: JObject<'local>,
+    state: bindings::SyncStatePointer<'local>,
+    doc: bindings::DocPointer<'local>,
+    patch_log: bindings::PatchLogPointer<'local>,
     message: JByteArray<'local>,
-) {
-    env.with_env(|env| {
-        let mut state = SyncState::borrow_from_pointer(env, state)?;
-        let mut doc = Automerge::borrow_from_pointer(env, doc)?;
-        let mut patch_log = am::PatchLog::borrow_from_pointer(env, patch_log)?;
-        let message_bytes = env.convert_byte_array(&message)?;
-        let message = unwrap_or_throw_amg_exc(env, Message::decode(&message_bytes))?;
-        unwrap_or_throw_amg_exc(
-            env,
-            doc.receive_sync_message_log_patches(&mut state, message, &mut patch_log),
-        )
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<()> {
+    let mut state = unsafe { AmSyncState::borrow_from_pointer(env, state)? };
+    let mut doc = unsafe { Automerge::borrow_from_pointer(env, doc)? };
+    let mut patch_log = unsafe { am::PatchLog::borrow_from_pointer(env, patch_log)? };
+    let message_bytes = env.convert_byte_array(&message)?;
+    let msg = unwrap_or_throw_amg_exc(env, Message::decode(&message_bytes))?;
+    unwrap_or_throw_amg_exc(
+        env,
+        doc.receive_sync_message_log_patches(&mut state, msg, &mut patch_log),
+    )
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn encodeSyncState<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn encode_sync_state<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-) -> JByteArray<'local> {
-    env.with_env(|env| {
-        let state = SyncState::borrow_from_pointer(env, state)?;
-        env.byte_array_from_slice(state.encode().as_slice())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    state: bindings::SyncStatePointer<'local>,
+) -> jni::errors::Result<JByteArray<'local>> {
+    let state = unsafe { AmSyncState::borrow_from_pointer(env, state)? };
+    env.byte_array_from_slice(state.encode().as_slice())
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn decodeSyncState<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn decode_sync_state<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
     bytes: JByteArray<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let bytes = env.convert_byte_array(&bytes)?;
-        let state = unwrap_or_throw_amg_exc(env, SyncState::decode(&bytes))?;
-        state.store_as_pointer(env)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<bindings::SyncStatePointer<'local>> {
+    let bytes = env.convert_byte_array(&bytes)?;
+    let state = unwrap_or_throw_amg_exc(env, AmSyncState::decode(&bytes))?;
+    unsafe { state.store_as_pointer(env) }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn freeSyncState<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn free_sync_state<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-) {
-    env.with_env(|env| {
-        let _state = SyncState::take_from_pointer(env, state)?;
-        Ok::<_, jni::errors::Error>(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    state: bindings::SyncStatePointer<'local>,
+) -> jni::errors::Result<()> {
+    let _ = unsafe { AmSyncState::take_from_pointer(env, state)? };
+    Ok(())
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn syncStateSharedHeads<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn sync_state_shared_heads<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    state: JObject<'local>,
-) -> JObjectArray<'local> {
-    env.with_env(|env| {
-        let state = SyncState::borrow_from_pointer(env, state)?;
-
-        let heads_arr = env.new_object_array(
-            state.shared_heads.len() as i32,
-            CHANGEHASH_CLASS,
-            JObject::null(),
-        )?;
-        for (i, head) in state.shared_heads.iter().enumerate() {
-            let hash = changehash_to_jobject(env, head)?;
-            heads_arr.set_element(env, i, hash)?;
-        }
-        Ok::<_, jni::errors::Error>(heads_arr)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    state: bindings::SyncStatePointer<'local>,
+) -> jni::errors::Result<JObjectArray<'local, bindings::ChangeHash<'local>>> {
+    let state = unsafe { AmSyncState::borrow_from_pointer(env, state)? };
+    heads_to_jobject_array(env, &state.shared_heads)
 }

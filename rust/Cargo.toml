@@ -14,7 +14,6 @@ edition = "2021"
 automerge = "0.8.0"
 jni = { workspace = true }
 thiserror = "1.0.37"
-automerge-jni-macros = { path = "./automerge-jni-macros" }
 
 [lib]
 crate_type = ["cdylib"]

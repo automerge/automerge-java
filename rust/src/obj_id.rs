@@ -3,17 +3,15 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use automerge_jni_macros::jni_fn;
 use jni::{
-    errors::ThrowRuntimeExAndDefault,
-    jni_sig, jni_str,
-    objects::{JByteArray, JClass, JObject},
-    refs::Reference,
-    strings::{JNIStr, JNIString},
+    jni_str,
+    objects::{JClass, JObject, JString},
+    strings::JNIString,
     sys::{jboolean, jint},
+    NativeMethod,
 };
 
-use crate::interop::set_array_field;
+use crate::bindings;
 
 pub struct JavaObjId(automerge::ObjId);
 
@@ -29,26 +27,14 @@ impl From<automerge::ObjId> for JavaObjId {
     }
 }
 
-const CLASSNAME: &JNIStr = am_classname!("ObjectId");
-
 impl JavaObjId {
-    pub(crate) fn into_jobject<'a>(
+    pub(crate) fn into_object_id<'a>(
         self,
         env: &mut jni::Env<'a>,
-    ) -> Result<JObject<'a>, jni::errors::Error> {
-        let raw_obj = env.alloc_object(CLASSNAME)?;
+    ) -> Result<bindings::ObjectId<'a>, jni::errors::Error> {
         let bytes = self.0.to_bytes();
         let jbytes = env.byte_array_from_slice(&bytes)?;
-        unsafe {
-            set_array_field(
-                env,
-                &raw_obj,
-                jni_str!("raw"),
-                jni_sig!("[B"),
-                (&jbytes).into(),
-            )?
-        };
-        Ok(raw_obj)
+        bindings::ObjectId::new(env, &jbytes)
     }
 
     pub(crate) fn from_jobject(
@@ -62,9 +48,9 @@ impl JavaObjId {
             )?;
             return Err(jni::errors::Error::JavaException);
         }
-        let bytes_jobject = env.get_field(&obj, jni_str!("raw"), jni_sig!("[B"))?.l()?;
-        let prim_array = JByteArray::cast_local(env, bytes_jobject)?;
-        let bytes = env.convert_byte_array(&prim_array)?;
+        let oid = bindings::ObjectId::cast_local(env, obj)?;
+        let jbytes = oid.raw(env)?;
+        let bytes = env.convert_byte_array(&jbytes)?;
         match automerge::ObjId::try_from(bytes.as_slice()) {
             Ok(o) => Ok(Self(o)),
             Err(e) => {
@@ -76,76 +62,66 @@ impl JavaObjId {
             }
         }
     }
+
+    pub(crate) fn from_object_id(
+        env: &mut jni::Env<'_>,
+        oid: bindings::ObjectId<'_>,
+    ) -> Result<Self, jni::errors::Error> {
+        Self::from_jobject(env, oid.into())
+    }
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn rootObjectId<'local>(
-    mut env: jni::EnvUnowned<'local>,
+const _METHODS: &[NativeMethod] = &[
+    ams_native! { static extern fn root_object_id() -> bindings::ObjectId },
+    ams_native! { static extern fn is_root_object_id(obj: bindings::ObjectId) -> jboolean },
+    ams_native! { static extern fn object_id_to_string(obj: bindings::ObjectId) -> JString },
+    ams_native! { static extern fn object_id_hash(obj: bindings::ObjectId) -> jint },
+    ams_native! { static extern fn object_ids_equal(left: bindings::ObjectId, right: bindings::ObjectId) -> jboolean },
+];
+
+fn root_object_id<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| JavaObjId(automerge::ObjId::Root).into_jobject(env))
-        .resolve::<ThrowRuntimeExAndDefault>()
+) -> jni::errors::Result<bindings::ObjectId<'local>> {
+    JavaObjId(automerge::ObjId::Root).into_object_id(env)
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn isRootObjectId<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn is_root_object_id<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    obj: JObject<'local>,
-) -> bool {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        Ok::<_, jni::errors::Error>(obj.as_ref() == &automerge::ROOT)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<jboolean> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    Ok(obj.as_ref() == &automerge::ROOT )
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn objectIdToString<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn object_id_to_string<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    obj: JObject<'local>,
-) -> JObject<'local> {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let s = obj.as_ref().to_string();
-        let jstr = env.new_string(s)?;
-        Ok::<_, jni::errors::Error>(jstr.into())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<JString<'local>> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    env.new_string(obj.as_ref().to_string())
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn objectIdHash<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn object_id_hash<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    obj: JObject<'local>,
-) -> jint {
-    env.with_env(|env| {
-        let obj = JavaObjId::from_jobject(env, obj)?;
-        let mut hasher = DefaultHasher::new();
-        obj.as_ref().hash(&mut hasher);
-        Ok::<_, jni::errors::Error>(hasher.finish() as i32)
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    obj: bindings::ObjectId<'local>,
+) -> jni::errors::Result<jint> {
+    let obj = JavaObjId::from_object_id(env, obj)?;
+    let mut hasher = DefaultHasher::new();
+    obj.as_ref().hash(&mut hasher);
+    Ok(hasher.finish() as i32)
 }
 
-#[no_mangle]
-#[jni_fn]
-pub unsafe extern "C" fn objectIdsEqual<'local>(
-    mut env: jni::EnvUnowned<'local>,
+fn object_ids_equal<'local>(
+    env: &mut jni::Env<'local>,
     _class: JClass<'local>,
-    left: JObject<'local>,
-    right: JObject<'local>,
-) -> jboolean {
-    env.with_env(|env| {
-        let left = JavaObjId::from_jobject(env, left)?;
-        let right = JavaObjId::from_jobject(env, right)?;
-        Ok::<_, jni::errors::Error>(left.as_ref() == right.as_ref())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>()
+    left: bindings::ObjectId<'local>,
+    right: bindings::ObjectId<'local>,
+) -> jni::errors::Result<jboolean> {
+    let left = JavaObjId::from_object_id(env, left)?;
+    let right = JavaObjId::from_object_id(env, right)?;
+    Ok(left.as_ref() == right.as_ref() )
 }
