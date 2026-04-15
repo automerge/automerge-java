@@ -73,6 +73,7 @@ macro_rules! ams_native {
                 bindings::Mark               => org.automerge.Mark,
                 bindings::MapEntry           => org.automerge.MapEntry,
                 bindings::ExpandMark        => org.automerge.ExpandMark,
+                bindings::Function           => java.util.function.Function,
             },
             $($tt)*
         }

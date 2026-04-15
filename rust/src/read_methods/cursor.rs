@@ -42,12 +42,7 @@ fn lookup_cursor_index_in_doc<'local>(
     heads: bindings::Optional<'local>,
 ) -> jni::errors::Result<jlong> {
     unsafe {
-        SomeReadPointer::doc(doc.into()).lookup_cursor_index(
-            env,
-            obj.into(),
-            cursor.into(),
-            heads,
-        )
+        SomeReadPointer::doc(doc.into()).lookup_cursor_index(env, obj.into(), cursor.into(), heads)
     }
 }
 
@@ -60,11 +55,6 @@ fn lookup_cursor_index_in_tx<'local>(
     heads: bindings::Optional<'local>,
 ) -> jni::errors::Result<jlong> {
     unsafe {
-        SomeReadPointer::tx(tx.into()).lookup_cursor_index(
-            env,
-            obj.into(),
-            cursor.into(),
-            heads,
-        )
+        SomeReadPointer::tx(tx.into()).lookup_cursor_index(env, obj.into(), cursor.into(), heads)
     }
 }

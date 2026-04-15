@@ -86,7 +86,7 @@ pub(crate) fn scalar_to_amvalue<'local>(
         }
         am::ScalarValue::Boolean(v) => {
             let amval = AmValueBool::new(env)?;
-            amval.set_value(env, *v )?;
+            amval.set_value(env, *v)?;
             amval.into()
         }
         am::ScalarValue::Null => AmValueNull::new(env)?.into(),

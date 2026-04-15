@@ -18,5 +18,12 @@ tracing = "0.1.41"
 tracing-core = "0.1"
 tracing-subscriber = "0.3.20"
 
+# Repo integration (samod-core and friends). These can be gated behind a
+# feature flag later if we want to ship the core JNI bindings without the
+# repo layer, but for now the repo module compiles unconditionally.
+samod-core = "0.9.0"
+url = "2"
+rand = "0.9"
+
 [lib]
 crate_type = ["cdylib"]

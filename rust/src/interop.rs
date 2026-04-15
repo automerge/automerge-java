@@ -121,7 +121,7 @@ pub(crate) fn heads_from_jobject<'local>(
             Ok(h) => h,
             Err(e) => {
                 let message = JNIString::new(format!("invalid hash at index{}: {}", i, e));
-                env.throw_new(jni_str!("java/lang/IllegalArgumentException"), message)?;
+                throw_illegal_argument(env, &message)?;
                 return Err(jni::errors::Error::JavaException);
             }
         };
@@ -187,12 +187,16 @@ pub(crate) fn read_usize(env: &jni::Env<'_>, val: jlong) -> Result<usize, jni::e
 pub(crate) fn read_u64(env: &jni::Env<'_>, val: jlong) -> Result<u64, jni::errors::Error> {
     u64::try_from(val).or_else(|_| {
         env.with_local_frame(1, |env| {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                jni_str!("invalid uint value"),
-            )?;
+            throw_illegal_argument(env, jni_str!("invalid uint value"))?;
             Ok::<_, jni::errors::Error>(())
         })?;
         Err(jni::errors::Error::JavaException)
     })
+}
+
+pub(crate) fn throw_illegal_argument<'local>(
+    env: &mut jni::Env<'local>,
+    msg: &JNIStr,
+) -> Result<(), jni::errors::Error> {
+    env.throw_new(jni_str!("java/lang/IllegalArgumentException"), msg)
 }

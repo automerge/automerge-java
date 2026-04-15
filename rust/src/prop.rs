@@ -1,5 +1,7 @@
 use jni::{jni_str, objects::JString, sys::jlong};
 
+use crate::interop::throw_illegal_argument;
+
 pub(crate) enum JProp<'a> {
     String(JString<'a>),
     Idx(jlong),
@@ -28,10 +30,8 @@ impl<'a> JProp<'a> {
             Self::Idx(i) => {
                 let idx = usize::try_from(i).or_else(|_err| {
                     env.with_local_frame(1, |env| {
-                        env.throw_new(
-                            jni_str!("java/lang/IllegalArgumentException"),
-                            jni_str!("index cannot be negative"),
-                        )?;
+                        throw_illegal_argument(env, jni_str!("index cannot be negative"))?;
+
                         Err::<usize, _>(jni::errors::Error::JavaException)
                     })?;
                     Err(jni::errors::Error::JavaException)

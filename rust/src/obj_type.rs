@@ -1,7 +1,7 @@
 use automerge as am;
-use jni::{jni_str, objects::JObject, strings::JNIString};
+use jni::{objects::JObject, strings::JNIString};
 
-use crate::bindings::ObjectType;
+use crate::{bindings::ObjectType, interop::throw_illegal_argument};
 
 pub(crate) enum JavaObjType {
     Map,
@@ -26,7 +26,7 @@ impl JavaObjType {
             TEXT_ORDINAL => Ok(Self::Text),
             other => env.with_local_frame(1, |env| {
                 let msg = JNIString::from(format!("unknown ordinal: {}", other));
-                env.throw_new(jni_str!("java/lang/IllegalArgumentException"), msg)?;
+                throw_illegal_argument(env, &msg)?;
                 Err(jni::errors::Error::JavaException)
             }),
         }
