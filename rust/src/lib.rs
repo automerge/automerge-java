@@ -30,6 +30,8 @@ mod java_option;
 
 mod tracing;
 
+mod repo;
+
 const AUTOMERGE_EXCEPTION: &JNIStr = am_classname!("AutomergeException");
 
 const _METHODS: &[NativeMethod] = &[ams_native! { static extern fn rust_lib_version() -> JString }];

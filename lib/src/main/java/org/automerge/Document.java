@@ -134,6 +134,17 @@ public class Document implements Read {
     }
 
     /**
+     * Drop this Document's reference to its native pointer without freeing
+     * the underlying memory. Used by the {@code org.automerge.repo} layer
+     * after a {@code DocumentActor.withDocument} callback returns and the
+     * native side has already reclaimed the underlying {@code Automerge}.
+     * Subsequent operations on this Document will fail.
+     */
+    synchronized void invalidate() {
+        this.pointer = Optional.empty();
+    }
+
+    /**
      * Load a document from disk
      *
      * <p>

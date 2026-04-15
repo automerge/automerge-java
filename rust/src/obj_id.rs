@@ -11,7 +11,7 @@ use jni::{
     NativeMethod,
 };
 
-use crate::bindings;
+use crate::{bindings, interop::throw_illegal_argument};
 
 pub struct JavaObjId(automerge::ObjId);
 
@@ -42,10 +42,8 @@ impl JavaObjId {
         obj: JObject<'_>,
     ) -> Result<Self, jni::errors::Error> {
         if obj.is_null() {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                jni_str!("ObjectId cannot be null"),
-            )?;
+            throw_illegal_argument(env, jni_str!("ObjectId cannot be null"))?;
+
             return Err(jni::errors::Error::JavaException);
         }
         let oid = bindings::ObjectId::cast_local(env, obj)?;
@@ -54,10 +52,8 @@ impl JavaObjId {
         match automerge::ObjId::try_from(bytes.as_slice()) {
             Ok(o) => Ok(Self(o)),
             Err(e) => {
-                env.throw_new(
-                    jni_str!("java/lang/IllegalArgumentException"),
-                    JNIString::from(e.to_string()),
-                )?;
+                throw_illegal_argument(env, &JNIString::from(e.to_string()))?;
+
                 Err(jni::errors::Error::JavaException)
             }
         }
@@ -92,7 +88,7 @@ fn is_root_object_id<'local>(
     obj: bindings::ObjectId<'local>,
 ) -> jni::errors::Result<jboolean> {
     let obj = JavaObjId::from_object_id(env, obj)?;
-    Ok(obj.as_ref() == &automerge::ROOT )
+    Ok(obj.as_ref() == &automerge::ROOT)
 }
 
 fn object_id_to_string<'local>(
@@ -123,5 +119,5 @@ fn object_ids_equal<'local>(
 ) -> jni::errors::Result<jboolean> {
     let left = JavaObjId::from_object_id(env, left)?;
     let right = JavaObjId::from_object_id(env, right)?;
-    Ok(left.as_ref() == right.as_ref() )
+    Ok(left.as_ref() == right.as_ref())
 }

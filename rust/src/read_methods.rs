@@ -11,7 +11,8 @@ use crate::bindings::{ArrayList, ChangeHash, Cursor, Optional};
 use crate::conflicts::make_java_conflicts;
 use crate::cursor::JavaCursor;
 use crate::interop::{
-    heads_from_jobject, heads_to_jobject_array, throw_amg_exc, unwrap_or_throw_amg_exc,
+    heads_from_jobject, heads_to_jobject_array, throw_amg_exc, throw_illegal_argument,
+    unwrap_or_throw_amg_exc,
 };
 use crate::java_option::make_optional;
 use crate::mark::mark_to_java;
@@ -324,10 +325,8 @@ impl<'local> SomeReadPointer<'local> {
         let heads = maybe_heads(env, heads)?;
         let read = SomeRead::from_pointer(env, self)?;
         if index < 0 {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                jni_str!("Index must be >= 0"),
-            )?;
+            throw_illegal_argument(env, jni_str!("Index must be >= 0"))?;
+
             return Err(jni::errors::Error::JavaException);
         }
         let cursor =

@@ -5,7 +5,7 @@ use jni::{
     Env, NativeMethod,
 };
 
-use crate::interop::unwrap_or_throw_amg_exc;
+use crate::interop::{throw_illegal_argument, unwrap_or_throw_amg_exc};
 
 /// Rust-side wrapper for [`automerge::Cursor`].
 #[derive(Debug)]
@@ -72,10 +72,11 @@ fn cursor_from_string<'local>(
     let cursor = match automerge::Cursor::try_from(s) {
         Ok(c) => c,
         Err(e) => {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                JNIString::from(format!("invalid cursor string: {}", e)),
+            throw_illegal_argument(
+                env,
+                &JNIString::from(format!("invalid cursor string: {}", e)),
             )?;
+
             return Err(jni::errors::Error::JavaException);
         }
     };
@@ -91,10 +92,8 @@ fn cursor_from_bytes<'local>(
     match automerge::Cursor::try_from(bytes) {
         Ok(c) => JavaCursor::from(c).into_cursor(env),
         Err(_e) => {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                jni_str!("invalid cursor bytes"),
-            )?;
+            throw_illegal_argument(env, jni_str!("invalid cursor bytes"))?;
+
             Err(jni::errors::Error::JavaException)
         }
     }

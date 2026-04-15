@@ -77,7 +77,7 @@ fn save_doc<'local>(
     _class: JClass<'local>,
     doc: bindings::DocPointer<'local>,
 ) -> jni::errors::Result<JByteArray<'local>> {
-    let doc = unsafe { Automerge::take_from_pointer(env, doc)? };
+    let doc = unsafe { Automerge::borrow_from_pointer(env, doc)? };
     env.byte_array_from_slice(&doc.save())
 }
 

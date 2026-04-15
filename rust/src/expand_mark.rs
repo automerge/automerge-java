@@ -2,7 +2,7 @@ use am::marks::ExpandMark;
 use automerge as am;
 use jni::jni_str;
 
-use crate::bindings;
+use crate::{bindings, interop::throw_illegal_argument};
 
 // Ordinal positions of variants in the `org.automerge.ExpandMark` enum.
 const BEFORE_ORDINAL: i32 = 0;
@@ -20,10 +20,8 @@ pub(crate) fn from_java<'a>(
         BOTH_ORDINAL => Ok(ExpandMark::Both),
         NONE_ORDINAL => Ok(ExpandMark::None),
         _ => env.with_local_frame(1, |env| {
-            env.throw_new(
-                jni_str!("java/lang/IllegalArgumentException"),
-                jni_str!("invalid ordinal"),
-            )?;
+            throw_illegal_argument(env, jni_str!("invalid ordinal"))?;
+
             Err(jni::errors::Error::JavaException)
         }),
     }

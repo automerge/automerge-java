@@ -90,12 +90,72 @@ bind_java_type! {
     },
 }
 
+// java.util.function.Function — bound so we can declare native-method
+// parameters of this type (the JNI signature mangling needs the real
+// class, not Object) and call `apply` directly without going through
+// `env.call_method`.
+bind_java_type! {
+    pub Function => java.util.function.Function,
+    methods {
+        fn apply(t: JObject) -> JObject,
+    },
+}
+
+// java.util.Map + Map.Entry + Set + Iterator — read-side bindings so we can
+// iterate over a `Map<K, V>` received from Java without having to drop to
+// stringly-typed `call_method` invocations in every consumer.
+bind_java_type! {
+    pub Map => java.util.Map,
+    type_map = { Set => java.util.Set },
+    methods {
+        fn entry_set() -> Set,
+    },
+}
+
+bind_java_type! {
+    pub Set => java.util.Set,
+    type_map = { Iterator => java.util.Iterator },
+    methods {
+        fn iterator() -> Iterator,
+    },
+}
+
+bind_java_type! {
+    pub Iterator => java.util.Iterator,
+    methods {
+        fn has_next() -> jboolean,
+        fn next() -> JObject,
+    },
+}
+
+bind_java_type! {
+    pub MapEntryView => java.util.Map::Entry,
+    methods {
+        fn get_key() -> JObject,
+        fn get_value() -> JObject,
+    },
+}
+
 // AutomergeSys inner classes (the long-pointer holders). No constructors:
 // Rust creates these via alloc_object + set_rust_field (see JavaPointer).
 bind_java_type! { pub DocPointer => org.automerge.AutomergeSys::DocPointer }
 bind_java_type! { pub TransactionPointer => org.automerge.AutomergeSys::TransactionPointer }
 bind_java_type! { pub SyncStatePointer => org.automerge.AutomergeSys::SyncStatePointer }
 bind_java_type! { pub PatchLogPointer => org.automerge.AutomergeSys::PatchLogPointer }
+
+// The public `org.automerge.Document` class. The repo layer constructs a
+// Document around a borrowed pointer for the duration of a
+// `DocumentActor.with_document` callback, then calls `invalidate()` to
+// drop the Java-side reference once the native side has reclaimed the
+// underlying Automerge. JNI ignores Java access modifiers, so binding to
+// the private constructor and the package-private `invalidate` method
+// works.
+bind_java_type! {
+    pub Document => org.automerge.Document,
+    type_map = { DocPointer => org.automerge.AutomergeSys::DocPointer },
+    constructors { fn new(pointer: DocPointer) },
+    methods { fn invalidate() -> () },
+}
 
 bind_java_type! {
     pub CommitResult => org.automerge.CommitResult,
