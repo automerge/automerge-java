@@ -2,7 +2,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.library") version "8.13.0"
-    id("org.danilopianini.publish-on-central") version "9.1.7"
+    id("org.danilopianini.publish-on-central")
 }
 
 // Load properties with priority: -P flags > local.properties
@@ -51,16 +51,9 @@ repositories {
     google()
 }
 
-group = "org.automerge"
-version = "0.0.8"
-
 publishOnCentral {
     projectDescription.set("Shared libraries for automerge on android")
     projectLongName.set("Automerge Android Native Libraries")
-    projectUrl.set("https://automerge.org")
-    licenseName.set("MIT")
-    licenseUrl.set("https://opensource.org/licenses/MIT")
-    scmConnection.set("scm:git:git://github.com/automerge/automerge-java.git")
 }
 
 android {
@@ -116,36 +109,6 @@ publishing {
             afterEvaluate {
                 from(components["release"])
             }
-            pom {
-                developers {
-                    developer {
-                        id.set("alex")
-                        name.set("Alex Good")
-                        email.set("alex@memoryandthought.me")
-                    }
-                }
-            }
         }
-    }
-}
-
-signing {
-    // For CI: use in-memory keys from environment
-    val signingKeyId: String? = System.getenv("SIGNING_KEY_ID")
-    val signingKey: String? = System.getenv("SIGNING_KEY")
-    val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
-
-    if (signingKey != null && signingPassword != null) {
-        if (signingKeyId != null) {
-            // Use 3-parameter version for subkeys (requires Gradle 6.0+)
-            // See: https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.plugins.signing/-signing-extension/use-in-memory-pgp-keys.html
-            useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-        } else {
-            // Use 2-parameter version for master keys
-            useInMemoryPgpKeys(signingKey, signingPassword)
-        }
-    } else {
-        // For local: use GPG agent
-        useGpgCmd()
     }
 }
