@@ -1,5 +1,6 @@
 plugins {
     id("com.diffplug.spotless") version "6.18.0" apply false
+    id("org.danilopianini.publish-on-central") version "9.1.7" apply false
 }
 
 fun readCargoVersion(): String {
@@ -11,54 +12,49 @@ fun readCargoVersion(): String {
 val cargoVersion = readCargoVersion()
 
 subprojects {
+    group = "org.automerge"
+    version = "0.0.8"
+
     ext.set("cargoVersion", cargoVersion)
     ext.set("libVersionSuffix", cargoVersion.replace(".", "_"))
-}
 
-tasks.register("verifyVersionConsistency") {
-    description = "Verifies that lib and android modules have the same version, and optionally matches an expected version"
-    group = "verification"
-
-    doLast {
-        val libProject = project(":lib")
-        val androidProject = project(":android")
-
-        val libVersion = libProject.version.toString()
-        val androidVersion = androidProject.version.toString()
-
-        if (libVersion == "unspecified" || androidVersion == "unspecified") {
-            throw GradleException("Version not set in one or more modules")
+    // Apply shared publishing and signing config to any subproject that uses publish-on-central
+    pluginManager.withPlugin("org.danilopianini.publish-on-central") {
+        extensions.configure<org.danilopianini.gradle.mavencentral.PublishOnCentralExtension> {
+            projectUrl.set("https://automerge.org")
+            licenseName.set("MIT")
+            licenseUrl.set("https://opensource.org/licenses/MIT")
+            scmConnection.set("scm:git:git://github.com/automerge/automerge-java.git")
         }
 
-        if (libVersion != androidVersion) {
-            throw GradleException(
-                """
-                Version mismatch between modules!
-                  lib/build.gradle.kts: $libVersion
-                  android/build.gradle.kts: $androidVersion
-
-                Please ensure both modules have the same version.
-                """.trimIndent()
-            )
-        }
-
-        // Check against expected version if provided via -PexpectedVersion=X.Y.Z
-        val expectedVersion = project.findProperty("expectedVersion")?.toString()
-        if (expectedVersion != null) {
-            if (libVersion != expectedVersion) {
-                throw GradleException(
-                    """
-                    Version mismatch with expected version!
-                      lib/build.gradle.kts and android/build.gradle.kts: $libVersion
-                      Expected version: $expectedVersion
-
-                    Please update both build.gradle.kts files to version: $expectedVersion
-                    """.trimIndent()
-                )
+        extensions.configure<PublishingExtension> {
+            publications.withType<MavenPublication> {
+                pom {
+                    developers {
+                        developer {
+                            id.set("alex")
+                            name.set("Alex Good")
+                            email.set("alex@memoryandthought.me")
+                        }
+                    }
+                }
             }
-            println("✅ Version verified: $libVersion matches expected version $expectedVersion")
-        } else {
-            println("✅ Version consistency verified: $libVersion")
+        }
+
+        extensions.configure<SigningExtension> {
+            val signingKeyId: String? = System.getenv("SIGNING_KEY_ID")
+            val signingKey: String? = System.getenv("SIGNING_KEY")
+            val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
+
+            if (signingKey != null && signingPassword != null) {
+                if (signingKeyId != null) {
+                    useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+                } else {
+                    useInMemoryPgpKeys(signingKey, signingPassword)
+                }
+            } else {
+                useGpgCmd()
+            }
         }
     }
 }

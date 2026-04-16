@@ -4,7 +4,7 @@ val isDev = providers.gradleProperty("env").getOrElse("release") == "dev"
 
 plugins {
     `java-library`
-    id("org.danilopianini.publish-on-central") version "9.1.7"
+    id("org.danilopianini.publish-on-central")
     id("com.diffplug.spotless")
 }
 
@@ -74,16 +74,9 @@ spotless {
     }
 }
 
-group = "org.automerge"
-version = "0.0.8"
-
 publishOnCentral {
     projectDescription.set("Automerge is a JSON-like data structure that can be modified concurrently by different users, and merged again automatically.")
     projectLongName.set("Automerge for Java")
-    projectUrl.set("https://automerge.org")
-    licenseName.set("MIT")
-    licenseUrl.set("https://opensource.org/licenses/MIT")
-    scmConnection.set("scm:git:git://github.com/automerge/automerge-java.git")
 }
 
 repositories {
@@ -462,13 +455,6 @@ publishing {
         withType<MavenPublication> {
             artifactId = "automerge"
             pom {
-                developers {
-                    developer {
-                        id.set("alex")
-                        name.set("Alex Good")
-                        email.set("alex@memoryandthought.me")
-                    }
-                }
                 // By default the "androidnative" dependency is rendered to the POM as an optional dependency.
                 // The dependency is an AAR though, not a JAR and this is not added to the POM. This means
                 // that maven will attempt to download the jar and then get upset when it can't find it.
@@ -511,23 +497,3 @@ publishing {
     }
 }
 
-signing {
-    // For CI: use in-memory keys from environment
-    val signingKeyId: String? = System.getenv("SIGNING_KEY_ID")
-    val signingKey: String? = System.getenv("SIGNING_KEY")
-    val signingPassword: String? = System.getenv("SIGNING_PASSWORD")
-
-    if (signingKey != null && signingPassword != null) {
-        if (signingKeyId != null) {
-            // Use 3-parameter version for subkeys (requires Gradle 6.0+)
-            // See: https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.plugins.signing/-signing-extension/use-in-memory-pgp-keys.html
-            useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-        } else {
-            // Use 2-parameter version for master keys
-            useInMemoryPgpKeys(signingKey, signingPassword)
-        }
-    } else {
-        // For local: use GPG agent
-        useGpgCmd()
-    }
-}
