@@ -20,5 +20,6 @@ pluginManagement {
 
 rootProject.name = "automerge-java"
 include("lib")
+include("websocket")
 include("android")
 include("android-test-app")
