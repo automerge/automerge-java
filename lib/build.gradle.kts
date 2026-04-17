@@ -58,13 +58,16 @@ configurations.named("runtimeElements") {
 
 dependencies {
     androidRuntime(project(":android"))
+
+    // SLF4J for logging (bridged from Rust tracing)
+    implementation("org.slf4j:slf4j-api:2.0.9")
 }
 
 spotless {
     java {
         importOrder()
         targetExclude("src/templates/*", "build/generated/java/BuildInfo.java")
-        removeUnusedImports()
+        removeUnusedImports("cleanthat-javaparser-unnecessaryimport")
         cleanthat()
         eclipse().configFile("${project.rootDir}/spotless.eclipseformat.xml")
         formatAnnotations()
@@ -93,6 +96,15 @@ testing {
         val test by getting(JvmTestSuite::class) {
             // Use JUnit Jupiter test framework
             useJUnitJupiter("5.8.2")
+
+            dependencies {
+                // Logback for tests — gives us programmatic level control
+                // and ListAppender to verify the tracing bridge. Pinned
+                // to the 1.3.x line so the same test jar can also be
+                // loaded under the Java 8 runtime used by `testJava8`
+                // (1.4+ requires Java 11+).
+                implementation("ch.qos.logback:logback-classic:1.3.14")
+            }
         }
 
 

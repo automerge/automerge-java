@@ -161,6 +161,9 @@ public class LoadLibrary {
                         + " but got " + actualLibVersion);
             }
             versionChecked = true;
+
+            // Initialize Rust tracing to bridge to SLF4J.
+            AutomergeSys.initTracing();
         }
     }
 

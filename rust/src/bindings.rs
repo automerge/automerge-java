@@ -449,3 +449,37 @@ bind_java_type! {
     is_instance_of = { base: PatchAction },
     constructors { fn new(property: Prop) },
 }
+
+// SLF4J types (used by the tracing bridge) --------------------------------
+
+bind_java_type! {
+    pub Slf4jLogger => org.slf4j.Logger,
+    methods {
+        fn trace(message: JString),
+        fn debug(message: JString),
+        fn info(message: JString),
+        fn warn(message: JString),
+        fn error(message: JString),
+        fn is_trace_enabled() -> jboolean,
+        fn is_debug_enabled() -> jboolean,
+        fn is_info_enabled() -> jboolean,
+        fn is_warn_enabled() -> jboolean,
+        fn is_error_enabled() -> jboolean,
+    },
+}
+
+bind_java_type! {
+    pub Slf4jLoggerFactory => org.slf4j.LoggerFactory,
+    type_map = { Slf4jLogger => org.slf4j.Logger },
+    methods {
+        static fn get_logger(name: JString) -> Slf4jLogger,
+    },
+}
+
+bind_java_type! {
+    pub Slf4jMDC => org.slf4j.MDC,
+    methods {
+        static fn put(key: JString, value: JString),
+        static fn clear(),
+    },
+}

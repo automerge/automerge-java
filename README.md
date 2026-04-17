@@ -85,3 +85,15 @@ public class App {
 }
 
 ```
+
+## Logging
+
+The library uses [SLF4J](https://www.slf4j.org/) for logging. All loggers sit under `org.automerge`, so `<logger name="org.automerge" level="INFO"/>` (or equivalent in your SLF4J backend) tunes everything the library emits.
+
+### Structured metadata
+
+Events include structured key/value metadata via SLF4J's MDC. The `%X` pattern in the encoder above will render them:
+
+```
+14:32:15.123 [main] INFO  org.automerge.automerge.sync file=sync.rs line=42 - Sync completed
+```

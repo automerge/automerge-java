@@ -14,6 +14,9 @@ edition = "2021"
 automerge = "0.8.0"
 jni = { workspace = true }
 thiserror = "1.0.37"
+tracing = "0.1.41"
+tracing-core = "0.1"
+tracing-subscriber = "0.3.20"
 
 [lib]
 crate_type = ["cdylib"]
