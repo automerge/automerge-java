@@ -27,6 +27,13 @@ class AutomergeSys {
     // Get the version of the JNI libs
     public static native String rustLibVersion();
 
+    // Initialize Rust tracing to bridge to SLF4J. Called automatically by
+    // LoadLibrary.initialize()
+    static native void initTracing();
+
+    // Emit a tracing event from Rust. For testing the SLF4J bridge only.
+    static native void testEmitTracingEvent(String level, String message);
+
     // Document methods
     public static native DocPointer createDoc();
 
