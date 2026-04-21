@@ -186,28 +186,27 @@ jobs:
             **Gradle:**
             ```kotlin
             implementation("org.automerge:automerge:${{ needs.validate.outputs.version }}")
-            ```
-
-            **Maven:**
-            ```xml
-            <dependency>
-              <groupId>org.automerge</groupId>
-              <artifactId>automerge</artifactId>
-              <version>${{ needs.validate.outputs.version }}</version>
-            </dependency>
+            implementation("org.automerge:automerge-websocket:${{ needs.validate.outputs.version }}")
+            implementation("org.automerge:automerge-kotlin:${{ needs.validate.outputs.version }}")
+            // Android (AAR with bundled native libs)
+            implementation("org.automerge:androidnative:${{ needs.validate.outputs.version }}")
             ```
 
             ## Verification
 
             Artifacts will be available on Maven Central within 10-30 minutes:
-            - JAR: https://repo1.maven.org/maven2/org/automerge/automerge/${{ needs.validate.outputs.version }}/
-            - AAR: https://repo1.maven.org/maven2/org/automerge/androidnative/${{ needs.validate.outputs.version }}/
+            - JAR (core): https://repo1.maven.org/maven2/org/automerge/automerge/${{ needs.validate.outputs.version }}/
+            - JAR (websocket): https://repo1.maven.org/maven2/org/automerge/automerge-websocket/${{ needs.validate.outputs.version }}/
+            - JAR (kotlin): https://repo1.maven.org/maven2/org/automerge/automerge-kotlin/${{ needs.validate.outputs.version }}/
+            - AAR (android): https://repo1.maven.org/maven2/org/automerge/androidnative/${{ needs.validate.outputs.version }}/
 
             ## Changes
 
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           files: |
             lib/build/libs/automerge-*.jar
+            websocket/build/libs/automerge-websocket-*.jar
+            automerge-kotlin/build/libs/automerge-kotlin-*.jar
             android/build/outputs/aar/android-release.aar
           draft: false
           prerelease: false
