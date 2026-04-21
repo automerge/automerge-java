@@ -1,3 +1,22 @@
+## 0.0.9
+
+### Added
+
+* `org.automerge.repo` - an implementation of the `automerge-repo` patterns from
+  the JavaScript world. This makes it easy to wire up networking and storage to
+  a reactive view of a document.
+* `automerge-websocket` - a package which implements a websocket transport for
+  `org.automerge.repo`. This is wire compatible with the JavaScript implementation
+  and so can be used to interoperate with web clients talking to JS sync servers
+  or run Java sync servers talking to web clients
+* `automerge-kotlin` - a small library of convenience functions for use when
+  working with `org.automerge.repo` from kotlin
+* SLF4j integration
+
+### Changed
+
+* Updated to the `0.0.8` version of the Rust library
+
 ## 0.0.8
 
 * Update the rust `automerge` library to `0.7.1`. This dramatically improves
