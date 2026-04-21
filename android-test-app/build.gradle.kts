@@ -2,7 +2,7 @@ plugins {
     id("com.android.application") version "8.13.0"
 }
 
-var projectVersion = "0.0.8"
+val projectVersion = version.toString()
 
 android {
     namespace = "org.automerge.testapp"

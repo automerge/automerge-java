@@ -12,9 +12,34 @@ fun readCargoVersion(): String {
 
 val cargoVersion = readCargoVersion()
 
+tasks.register("verifyVersionConsistency") {
+    description = "Verifies the project version matches -PexpectedVersion=X.Y.Z (used by the release workflow)."
+    group = "verification"
+
+    doLast {
+        val actual = subprojects.first().version.toString()
+        if (actual == "unspecified") {
+            throw GradleException("Version not set in subprojects { } block")
+        }
+        val expected = project.findProperty("expectedVersion")?.toString()
+        if (expected != null && expected != actual) {
+            throw GradleException(
+                """
+                Version mismatch!
+                  build.gradle.kts: $actual
+                  Expected (from tag): $expected
+
+                Update `version` in the root build.gradle.kts `subprojects { }` block to $expected.
+                """.trimIndent()
+            )
+        }
+        println("Version verified: $actual" + if (expected != null) " matches expected $expected" else "")
+    }
+}
+
 subprojects {
     group = "org.automerge"
-    version = "0.0.8"
+    version = "0.0.9"
 
     ext.set("cargoVersion", cargoVersion)
     ext.set("libVersionSuffix", cargoVersion.replace(".", "_"))
