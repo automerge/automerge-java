@@ -4,6 +4,8 @@ plugins {
     id("com.diffplug.spotless")
 }
 
+base.archivesName.set("automerge-websocket")
+
 java {
     withJavadocJar()
     withSourcesJar()
